@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Thic, Thac, Thoe</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#0f172a">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/1041/1041916.png">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&display=swap');
+        
+        :root {
+            --cell-size: 65px;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+            overflow-x: hidden;
+            touch-action: manipulation;
+            /* Safe area insets for mobile notches */
+            padding-top: env(safe-area-inset-top);
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+
+        .grid-container {
+            display: grid;
+            gap: 6px;
+            transition: all 0.3s ease-in-out;
+            margin: 0 auto;
+        }
+
+        /* Responsive Cell Styling */
+        .cell, .expand-btn {
+            width: var(--cell-size);
+            height: var(--cell-size);
+            background-color: #1e293b;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 1px solid rgba(255,255,255,0.05);
+            position: relative;
+        }
+
+        @media (max-width: 400px) {
+            .cell, .expand-btn { border-radius: 8px; }
+        }
+
+        .cell:hover:not(.filled), .expand-btn:hover {
+            background-color: #334155;
+            transform: translateY(-2px);
+            border-color: rgba(255,255,255,0.1);
+        }
+
+        .cell.filled {
+            cursor: default;
+        }
+
+        .cell i {
+            width: 60%;
+            height: 60%;
+        }
+
+        .player-card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 2px solid transparent;
+            position: relative;
+        }
+
+        .player-card.active {
+            transform: translateY(-4px);
+            border-color: currentColor;
+            box-shadow: 0 10px 15px -5px rgba(0, 0, 0, 0.5);
+        }
+
+        .win-line {
+            background-color: #4ade80 !important;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.8; transform: scale(0.96); }
+        }
+
+        .cpu-badge {
+            @apply absolute -top-2 -right-1 bg-purple-600 text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full shadow-lg border border-purple-400 z-10;
+        }
+
+        .extension-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            width: 100%;
+            max-width: 340px;
+        }
+
+        .expand-btn {
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            height: auto;
+        }
+
+        .modal-overlay {
+            @apply fixed inset-0 z-[100] bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4 transition-all duration-300;
+        }
+
+        .expansion-glow {
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.4);
+            border-radius: 20px;
+            padding: 10px;
+            background: rgba(30, 41, 59, 0.2);
+            border: 1px solid rgba(255,255,255,0.03);
+            max-width: 100%;
+        }
+
+        .settings-btn {
+            @apply flex items-center gap-2 px-6 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-2xl transition-all font-bold text-xs uppercase tracking-widest border border-slate-700 active:scale-95 mb-4 shadow-lg;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center py-6 px-3">
+
+    <div class="max-w-4xl w-full flex flex-col items-center flex-grow">
+        <header class="text-center mb-6">
+            <h1 class="text-4xl sm:text-6xl font-black mb-1 tracking-tighter bg-gradient-to-br from-white via-slate-300 to-slate-500 bg-clip-text text-transparent italic">
+                THIC, THAC, THOE
+            </h1>
+            <h2 class="text-slate-500 text-xs sm:text-sm font-bold uppercase tracking-[0.2em] mb-2">Three Player Tic Tac Toe</h2>
+            <p id="game-message" class="text-slate-400 font-semibold h-5 tracking-widest uppercase text-[10px] sm:text-xs">3 Players • Infinite Expansion</p>
+        </header>
+
+        <!-- Player Indicators -->
+        <div id="player-status" class="flex justify-center gap-2 sm:gap-4 mb-6 w-full px-2">
+            <div id="p0-card" class="player-card active bg-slate-800/80 p-2 sm:p-4 rounded-2xl w-full max-w-[100px] sm:max-w-[140px] flex flex-col items-center text-blue-400">
+                <i data-lucide="circle" class="w-5 h-5 sm:w-8 sm:h-8 mb-1 sm:mb-2"></i>
+                <span class="font-extrabold text-[9px] sm:text-xs uppercase tracking-widest">Circle</span>
+            </div>
+            <div id="p1-card" class="player-card bg-slate-800/80 p-2 sm:p-4 rounded-2xl w-full max-w-[100px] sm:max-w-[140px] flex flex-col items-center text-rose-400">
+                <i data-lucide="x" class="w-5 h-5 sm:w-8 sm:h-8 mb-1 sm:mb-2"></i>
+                <span class="font-extrabold text-[9px] sm:text-xs uppercase tracking-widest">Cross</span>
+            </div>
+            <div id="p2-card" class="player-card bg-slate-800/80 p-2 sm:p-4 rounded-2xl w-full max-w-[100px] sm:max-w-[140px] flex flex-col items-center text-amber-400">
+                <div id="cpu-indicator" class="hidden cpu-badge uppercase">CPU</div>
+                <i data-lucide="star" class="w-5 h-5 sm:w-8 sm:h-8 mb-1 sm:mb-2"></i>
+                <span class="font-extrabold text-[9px] sm:text-xs uppercase tracking-widest">Star</span>
+            </div>
+        </div>
+
+        <!-- Extension Buttons -->
+        <div id="extension-controls" class="hidden mb-6 flex flex-col items-center w-full animate-in fade-in slide-in-from-top-2 duration-300">
+            <h3 class="text-slate-500 text-[9px] font-black uppercase tracking-[0.2em] mb-3">Select Expansion Direction</h3>
+            <div class="extension-grid">
+                <button onclick="handleExpansion('up')" class="expand-btn group">
+                    <i data-lucide="chevron-up" class="w-5 h-5 group-hover:scale-125 transition-transform text-slate-400"></i>
+                </button>
+                <button onclick="handleExpansion('down')" class="expand-btn group">
+                    <i data-lucide="chevron-down" class="w-5 h-5 group-hover:scale-125 transition-transform text-slate-400"></i>
+                </button>
+                <button onclick="handleExpansion('left')" class="expand-btn group">
+                    <i data-lucide="chevron-left" class="w-5 h-5 group-hover:scale-125 transition-transform text-slate-400"></i>
+                </button>
+                <button onclick="handleExpansion('right')" class="expand-btn group">
+                    <i data-lucide="chevron-right" class="w-5 h-5 group-hover:scale-125 transition-transform text-slate-400"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- The Game Board Container -->
+        <div class="relative expansion-glow mb-8 overflow-hidden">
+            <div id="game-grid" class="grid-container">
+                <!-- Cells generated by JS -->
+            </div>
+        </div>
+
+        <!-- Global Bottom UI -->
+        <div class="flex flex-col items-center mt-auto w-full pb-6">
+            <button onclick="openSettings()" class="settings-btn">
+                <i data-lucide="settings" class="w-4 h-4"></i>
+                Game Settings
+            </button>
+            <div class="text-center text-slate-600 text-[9px] font-black uppercase tracking-[0.3em]">
+                Dim: <span id="grid-dim" class="text-slate-400">3x3</span>
+            </div>
+        </div>
+
+        <!-- Settings Modal -->
+        <div id="settings-modal" class="modal-overlay hidden">
+            <div class="bg-slate-900 border border-slate-700/50 p-6 sm:p-10 rounded-[2rem] max-w-xs sm:max-w-sm w-full shadow-2xl">
+                <div class="flex items-center justify-between mb-6 sm:mb-8">
+                    <div class="flex items-center gap-3">
+                        <div class="p-2 sm:p-3 bg-blue-500/10 rounded-xl sm:rounded-2xl">
+                            <i data-lucide="sliders" class="text-blue-400 w-5 h-5 sm:w-6 sm:h-6"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-xl sm:text-2xl font-black italic tracking-tight">Settings</h3>
+                            <p class="text-slate-500 text-[8px] sm:text-[10px] font-bold uppercase tracking-widest">CPU Configuration</p>
+                        </div>
+                    </div>
+                    <button onclick="closeSettings()" class="p-2 hover:bg-slate-800 rounded-full transition-colors">
+                        <i data-lucide="x" class="text-slate-500 w-5 h-5"></i>
+                    </button>
+                </div>
+
+                <div class="space-y-6 sm:space-y-8">
+                    <div class="flex items-center justify-between p-3 sm:p-4 bg-slate-800/40 rounded-2xl border border-slate-700/30">
+                        <div class="flex flex-col">
+                            <span class="font-bold text-xs sm:text-sm">Star CPU Player</span>
+                            <span class="text-[8px] sm:text-[10px] text-slate-500 font-semibold uppercase">Automate Star turn</span>
+                        </div>
+                        <button id="cpu-toggle" onclick="toggleCpuSetting()" class="w-12 sm:w-14 h-6 sm:h-7 rounded-full bg-slate-700 relative transition-all duration-300">
+                            <div class="w-4 sm:w-5 h-4 sm:h-5 bg-white rounded-full absolute top-1 left-1 transition-all duration-300 shadow-md"></div>
+                        </button>
+                    </div>
+
+                    <div id="difficulty-options" class="space-y-3 sm:space-y-4 opacity-40 pointer-events-none transition-all duration-300">
+                        <div class="flex items-center gap-2 px-1">
+                            <i data-lucide="zap" class="w-3 h-3 text-slate-500"></i>
+                            <span class="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">CPU Difficulty</span>
+                        </div>
+                        <div class="grid grid-cols-1 gap-2 sm:gap-3">
+                            <button onclick="setDifficulty('easy')" id="diff-easy" class="py-2.5 sm:py-3 px-4 sm:px-6 rounded-xl sm:rounded-2xl bg-slate-800 hover:bg-slate-700 text-[10px] sm:text-xs font-black uppercase tracking-widest border-2 border-transparent transition-all">Casual</button>
+                            <button onclick="setDifficulty('medium')" id="diff-medium" class="py-2.5 sm:py-3 px-4 sm:px-6 rounded-xl sm:rounded-2xl bg-slate-800 hover:bg-slate-700 text-[10px] sm:text-xs font-black uppercase tracking-widest border-2 border-transparent transition-all">Strategic</button>
+                            <button onclick="setDifficulty('hard')" id="diff-hard" class="py-2.5 sm:py-3 px-4 sm:px-6 rounded-xl sm:rounded-2xl bg-slate-800 hover:bg-slate-700 text-[10px] sm:text-xs font-black uppercase tracking-widest border-2 border-transparent transition-all">Unstoppable</button>
+                        </div>
+                    </div>
+                </div>
+
+                <button onclick="closeSettings()" class="w-full mt-8 py-3.5 sm:py-4 bg-white text-slate-950 font-black rounded-2xl transition-all shadow-xl hover:scale-[1.02] active:scale-95 text-xs sm:text-sm uppercase tracking-widest">
+                    Done
+                </button>
+            </div>
+        </div>
+
+        <!-- Game Over UI -->
+        <div id="game-over" class="hidden fixed inset-0 bg-slate-950/95 z-[200] flex items-center justify-center p-6">
+            <div class="bg-slate-900 p-8 sm:p-10 rounded-[2.5rem] sm:rounded-[3rem] border border-slate-700/50 max-w-xs sm:max-w-sm w-full text-center shadow-2xl">
+                <div id="winner-icon" class="flex justify-center mb-4 sm:mb-6 scale-125 sm:scale-150"></div>
+                <h2 class="text-4xl sm:text-5xl font-black mb-2 italic tracking-tighter uppercase">Victory!</h2>
+                <p id="winner-text" class="text-slate-400 font-medium mb-8 sm:mb-10 text-sm"></p>
+                <button onclick="resetGame()" class="w-full py-4 sm:py-5 bg-blue-600 hover:bg-blue-500 text-white rounded-3xl font-black text-base sm:text-lg shadow-2xl transition-all transform hover:scale-105 active:scale-95 uppercase tracking-widest">
+                    Rematch
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Service Worker Registration for PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js').catch(err => console.log('SW registration failed:', err));
+            });
+        }
+
+        let grid = [];
+        let rows = 3;
+        let cols = 3;
+        let currentPlayerIndex = 0;
+        let gameState = 'playing'; 
+        let winSequence = [];
+        
+        let cpuEnabled = false;
+        let difficulty = 'medium'; 
+        let isAiThinking = false;
+
+        const players = [
+            { id: 0, name: 'Circle', icon: 'circle', color: 'text-blue-400', hex: '#60a5fa' },
+            { id: 1, name: 'Cross', icon: 'x', color: 'text-rose-400', hex: '#fb7185' },
+            { id: 2, name: 'Star', icon: 'star', color: 'text-amber-400', hex: '#fbbf24' }
+        ];
+
+        function initGrid() {
+            grid = Array(rows).fill(null).map(() => Array(cols).fill(null));
+            updateDifficultyUI();
+            updateCellSize();
+            render();
+        }
+
+        function updateCellSize() {
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+            
+            const maxWidth = viewportWidth * 0.92;
+            const maxHeight = viewportHeight * 0.5;
+
+            const gap = 6;
+            const sizeByWidth = (maxWidth - (gap * (cols - 1))) / cols;
+            const sizeByHeight = (maxHeight - (gap * (rows - 1))) / rows;
+            
+            let optimalSize = Math.min(sizeByWidth, sizeByHeight, 80);
+            optimalSize = Math.max(optimalSize, 30);
+
+            document.documentElement.style.setProperty('--cell-size', `${optimalSize}px`);
+        }
+
+        window.addEventListener('resize', () => {
+            updateCellSize();
+            render();
+        });
+
+        function openSettings() {
+            document.getElementById('settings-modal').classList.remove('hidden');
+        }
+
+        function closeSettings() {
+            document.getElementById('settings-modal').classList.add('hidden');
+            if (cpuEnabled && currentPlayerIndex === 2 && gameState !== 'won' && !isAiThinking) {
+                processAiTurn();
+            }
+        }
+
+        function toggleCpuSetting() {
+            cpuEnabled = !cpuEnabled;
+            updateDifficultyUI();
+            const indicator = document.getElementById('cpu-indicator');
+            indicator.classList.toggle('hidden', !cpuEnabled);
+        }
+
+        function setDifficulty(level) {
+            difficulty = level;
+            updateDifficultyUI();
+        }
+
+        function updateDifficultyUI() {
+            const btn = document.getElementById('cpu-toggle');
+            const dot = btn.querySelector('div');
+            const options = document.getElementById('difficulty-options');
+            
+            if (cpuEnabled) {
+                btn.classList.replace('bg-slate-700', 'bg-purple-600');
+                dot.classList.add('translate-x-6', 'sm:translate-x-7');
+                options.classList.remove('opacity-40', 'pointer-events-none');
+            } else {
+                btn.classList.replace('bg-purple-600', 'bg-slate-700');
+                dot.classList.remove('translate-x-6', 'sm:translate-x-7');
+                options.classList.add('opacity-40', 'pointer-events-none');
+            }
+
+            ['easy', 'medium', 'hard'].forEach(lev => {
+                const el = document.getElementById(`diff-${lev}`);
+                if (difficulty === lev) {
+                    el.classList.replace('bg-slate-800', 'bg-white');
+                    el.classList.replace('text-[10px]', 'text-slate-950');
+                    el.classList.add('border-white');
+                } else {
+                    el.classList.replace('bg-white', 'bg-slate-800');
+                    el.classList.replace('text-slate-950', 'text-[10px]');
+                    el.classList.remove('border-white');
+                }
+            });
+        }
+
+        function render() {
+            const gridEl = document.getElementById('game-grid');
+            const gameMessage = document.getElementById('game-message');
+            const expansionControls = document.getElementById('extension-controls');
+            const gridDim = document.getElementById('grid-dim');
+            
+            gridDim.innerText = `${rows}x${cols}`;
+            gridEl.innerHTML = '';
+            gridEl.style.gridTemplateColumns = `repeat(${cols}, min-content)`;
+
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    if (grid[r][c] !== null) {
+                        cell.classList.add('filled');
+                        const player = players[grid[r][c]];
+                        cell.innerHTML = `<i data-lucide="${player.icon}" class="${player.color}"></i>`;
+                        
+                        if (winSequence.some(pos => pos.r === r && pos.c === c)) {
+                            cell.classList.add('win-line');
+                        }
+                    } else if (gameState === 'playing' && !isAiThinking) {
+                        cell.onclick = () => handleCellClick(r, c);
+                    }
+                    gridEl.appendChild(cell);
+                }
+            }
+
+            if (gameState === 'extending') {
+                gameMessage.innerText = `${players[currentPlayerIndex].name}: Expand Board`;
+                gameMessage.className = "text-white font-black animate-pulse uppercase tracking-[0.2em] text-[10px] sm:text-xs";
+                expansionControls.classList.remove('hidden');
+            } else if (gameState === 'won') {
+                gameMessage.innerText = "Match Over";
+                gameMessage.className = "text-green-400 font-black uppercase tracking-[0.2em] text-[10px] sm:text-xs";
+                expansionControls.classList.add('hidden');
+            } else {
+                gameMessage.innerText = isAiThinking ? `CPU Processing...` : `${players[currentPlayerIndex].name}'s Turn`;
+                gameMessage.className = players[currentPlayerIndex].color + " font-black uppercase tracking-[0.2em] text-[10px] sm:text-xs";
+                expansionControls.classList.add('hidden');
+            }
+
+            players.forEach((p, index) => {
+                const card = document.getElementById(`p${index}-card`);
+                if (index === currentPlayerIndex) {
+                    card.classList.add('active');
+                    card.style.borderColor = p.hex;
+                } else {
+                    card.classList.remove('active');
+                    card.style.borderColor = 'transparent';
+                }
+            });
+
+            lucide.createIcons();
+        }
+
+        function handleCellClick(r, c) {
+            if (gameState !== 'playing' || grid[r][c] !== null || isAiThinking) return;
+            executeMove(r, c);
+        }
+
+        function executeMove(r, c) {
+            grid[r][c] = currentPlayerIndex;
+            
+            if (checkWin(r, c)) {
+                gameState = 'won';
+                showWinner();
+            } else if (isBoardFull()) {
+                gameState = 'extending';
+                nextTurn();
+                processAiTurn();
+            } else {
+                nextTurn();
+                processAiTurn();
+            }
+            render();
+        }
+
+        async function processAiTurn() {
+            if (gameState === 'won' || !cpuEnabled || currentPlayerIndex !== 2) return;
+
+            isAiThinking = true;
+            render();
+
+            await new Promise(resolve => setTimeout(resolve, 1200));
+
+            if (gameState === 'playing') {
+                const move = findAiMove();
+                executeMove(move.r, move.c);
+            } else if (gameState === 'extending') {
+                const directions = ['up', 'down', 'left', 'right'];
+                const choice = directions[Math.floor(Math.random() * directions.length)];
+                handleExpansion(choice);
+            }
+
+            isAiThinking = false;
+            render();
+        }
+
+        function findAiMove() {
+            const available = [];
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    if (grid[r][c] === null) available.push({r, c});
+                }
+            }
+
+            if (difficulty === 'easy') {
+                return available[Math.floor(Math.random() * available.length)];
+            }
+
+            const winMove = getWinningMove(2);
+            if (winMove) return winMove;
+
+            const blockMove0 = getWinningMove(0);
+            if (blockMove0) return blockMove0;
+            const blockMove1 = getWinningMove(1);
+            if (blockMove1) return blockMove1;
+
+            if (difficulty === 'medium') {
+                return available[Math.floor(Math.random() * available.length)];
+            }
+
+            const center = available.find(m => m.r === Math.floor(rows/2) && m.c === Math.floor(cols/2));
+            if (center) return center;
+
+            return available[Math.floor(Math.random() * available.length)];
+        }
+
+        function getWinningMove(pIdx) {
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    if (grid[r][c] === null) {
+                        grid[r][c] = pIdx;
+                        const isWin = checkWin(r, c, true);
+                        grid[r][c] = null;
+                        if (isWin) return {r, c};
+                    }
+                }
+            }
+            return null;
+        }
+
+        function nextTurn() {
+            currentPlayerIndex = (currentPlayerIndex + 1) % 3;
+        }
+
+        function isBoardFull() {
+            return grid.every(row => row.every(cell => cell !== null));
+        }
+
+        function handleExpansion(direction) {
+            if (gameState !== 'extending') return;
+
+            if (direction === 'up') { grid.unshift(Array(cols).fill(null)); rows++; } 
+            else if (direction === 'down') { grid.push(Array(cols).fill(null)); rows++; } 
+            else if (direction === 'left') { grid.forEach(row => row.unshift(null)); cols++; } 
+            else if (direction === 'right') { grid.forEach(row => row.push(null)); cols++; }
+
+            gameState = 'playing';
+            updateCellSize();
+            nextTurn(); 
+            processAiTurn();
+            render();
+        }
+
+        function checkWin(r, c, silent = false) {
+            const player = grid[r][c];
+            const directions = [{ dr: 0, dc: 1 }, { dr: 1, dc: 0 }, { dr: 1, dc: 1 }, { dr: 1, dc: -1 }];
+            for (let { dr, dc } of directions) {
+                let count = 1;
+                let seq = [{ r, c }];
+                for (let i = 1; i < 3; i++) {
+                    const nr = r + dr * i, nc = c + dc * i;
+                    if (isValid(nr, nc) && grid[nr][nc] === player) { count++; seq.push({ r: nr, c: nc }); } else break;
+                }
+                for (let i = 1; i < 3; i++) {
+                    const nr = r - dr * i, nc = c - dc * i;
+                    if (isValid(nr, nc) && grid[nr][nc] === player) { count++; seq.push({ r: nr, c: nc }); } else break;
+                }
+                if (count >= 3) {
+                    if (!silent) winSequence = seq;
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        function isValid(r, c) { return r >= 0 && r < rows && c >= 0 && c < cols; }
+
+        function showWinner() {
+            const winner = players[currentPlayerIndex];
+            document.getElementById('game-over').classList.remove('hidden');
+            document.getElementById('winner-text').innerText = `${winner.name} secured 3 in a row!`;
+            const iconContainer = document.getElementById('winner-icon');
+            iconContainer.innerHTML = `<i data-lucide="${winner.icon}" class="${winner.color} w-20 h-20"></i>`;
+            lucide.createIcons();
+        }
+
+        function resetGame() {
+            rows = 3; cols = 3;
+            currentPlayerIndex = 0;
+            gameState = 'playing';
+            winSequence = [];
+            isAiThinking = false;
+            document.getElementById('game-over').classList.add('hidden');
+            initGrid();
+        }
+
+        window.onload = initGrid;
+    </script>
+</body>
+</html>
