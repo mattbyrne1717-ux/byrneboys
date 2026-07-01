@@ -1,0 +1,1408 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Wordsearch Infinity</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    gridTemplateRows: {
+                        '4': 'repeat(4, minmax(0, 1fr))',
+                        '5': 'repeat(5, minmax(0, 1fr))',
+                        '6': 'repeat(6, minmax(0, 1fr))',
+                        '7': 'repeat(7, minmax(0, 1fr))',
+                        '8': 'repeat(8, minmax(0, 1fr))',
+                        '9': 'repeat(9, minmax(0, 1fr))',
+                    },
+                    gridTemplateColumns: {
+                        '4': 'repeat(4, minmax(0, 1fr))',
+                        '5': 'repeat(5, minmax(0, 1fr))',
+                        '6': 'repeat(6, minmax(0, 1fr))',
+                        '7': 'repeat(7, minmax(0, 1fr))',
+                        '8': 'repeat(8, minmax(0, 1fr))',
+                        '9': 'repeat(9, minmax(0, 1fr))',
+                    },
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#f5f3ff',
+                            100: '#ede9fe',
+                            200: '#ddd6fe',
+                            300: '#c4b5fd',
+                            400: '#a78bfa',
+                            500: '#8b5cf6',
+                            600: '#7c3aed',
+                            700: '#6d28d9',
+                            800: '#5b21b6',
+                            900: '#4c1d95',
+                            950: '#0c071c',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Smooth transitions & animations */
+        .grid-cell {
+            transition: background-color 0.15s, transform 0.1s;
+            touch-action: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        .grid-cell.selected {
+            transform: scale(0.92);
+        }
+        
+        @keyframes cascade-down {
+            0% {
+                transform: translateY(-40px);
+                opacity: 0;
+            }
+            100% {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        
+        .falling {
+            animation: cascade-down 0.3s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+        }
+
+        /* Particles container */
+        #particle-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 50;
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.3);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(139, 92, 246, 0.3);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(139, 92, 246, 0.5);
+        }
+
+        /* Soft neon glow */
+        .neon-glow {
+            box-shadow: 0 0 15px rgba(139, 92, 246, 0.4);
+        }
+        
+        .neon-text {
+            text-shadow: 0 0 8px rgba(139, 92, 246, 0.6);
+        }
+
+        /* Pulse hint glow */
+        @keyframes hint-pulse {
+            0%, 100% {
+                box-shadow: 0 0 0 0px rgba(16, 185, 129, 0.7);
+                background-color: rgba(16, 185, 129, 0.2);
+            }
+            50% {
+                box-shadow: 0 0 12px 6px rgba(16, 185, 129, 0.3);
+                background-color: rgba(16, 185, 129, 0.4);
+            }
+        }
+        .hint-pulse-animation {
+            animation: hint-pulse 1.5s infinite;
+        }
+
+        @keyframes fade-in {
+            0% { opacity: 0; transform: scale(0.95); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+        .animate-fade-in {
+            animation: fade-in 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        /* Hide layout jumping during loading */
+        [v-cloak] {
+            display: none;
+        }
+    </style>
+</head>
+<body class="bg-brand-950 text-slate-100 font-sans h-full overflow-hidden select-none flex flex-col justify-between">
+
+    <!-- Splash/Welcome Screen -->
+    <div id="welcome-screen" class="fixed inset-0 bg-brand-950 z-50 flex flex-col justify-between p-6 overflow-y-auto">
+        <div class="flex-1 flex flex-col items-center justify-center max-w-md mx-auto w-full py-4">
+            <!-- Icon/Logo -->
+            <div class="w-20 h-20 bg-gradient-to-br from-brand-500 to-violet-700 rounded-3xl flex items-center justify-center mb-5 shadow-xl shadow-brand-500/20 transform hover:rotate-12 transition-transform duration-300 shrink-0">
+                <i class="fa-solid fa-magnifying-glass text-white text-3xl"></i>
+            </div>
+            
+            <h1 class="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-brand-300 via-brand-400 to-indigo-300 mb-1 tracking-tight text-center">
+                Wordsearch Infinity
+            </h1>
+            <p class="text-slate-400 text-center mb-6 text-xs">Infinite cascading search grid. Find words, level up your board, beat the clock.</p>
+
+            <!-- Guide Card -->
+            <div class="bg-slate-900/60 backdrop-blur-md border border-slate-800/80 rounded-2xl p-4 mb-6 w-full shadow-inner text-left shrink-0">
+                <h3 class="text-brand-300 font-bold mb-2 text-xs flex items-center gap-2">
+                    <i class="fa-solid fa-circle-info"></i> How to Play
+                </h3>
+                <ul class="space-y-1.5 text-[11px] text-slate-300">
+                    <li class="flex items-start gap-2">
+                        <span class="w-1.5 h-1.5 rounded-full bg-brand-400 mt-1.5 shrink-0"></span>
+                        <span>Drag or touch-connect letters in any straight line (diagonals included!).</span>
+                    </li>
+                    <li class="flex items-start gap-2">
+                        <span class="w-1.5 h-1.5 rounded-full bg-brand-400 mt-1.5 shrink-0"></span>
+                        <span>Minimum word size is <strong class="text-brand-300">3 letters</strong>.</span>
+                    </li>
+                    <li class="flex items-start gap-2">
+                        <span class="w-1.5 h-1.5 rounded-full bg-brand-400 mt-1.5 shrink-0"></span>
+                        <span>In <strong class="text-emerald-400">Grow Mode</strong>, start with a 4x4 grid and expand up to 9x9 by scoring points!</span>
+                    </li>
+                    <li class="flex items-start gap-2">
+                        <span class="w-1.5 h-1.5 rounded-full bg-brand-400 mt-1.5 shrink-0"></span>
+                        <span>Need a boost? Use the <strong class="text-emerald-400">Hint</strong> button to reveal a letter for <strong class="text-rose-400">-100 pts</strong>.</span>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Mode Selection Buttons Groups -->
+            <div class="space-y-4 w-full">
+                <!-- Group 1: Classic Modes -->
+                <div>
+                    <span class="block text-[10px] text-slate-500 uppercase tracking-widest font-extrabold mb-2 text-left px-1">Classic Modes (Fixed 9x9)</span>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="startGame('infinity')" class="bg-slate-900 border border-slate-800/80 hover:bg-slate-850 p-3 rounded-xl shadow-lg active:scale-95 transition-all flex flex-col items-start gap-1 group text-left">
+                            <i class="fa-solid fa-infinity text-brand-400 text-sm"></i>
+                            <span class="text-xs font-bold text-white mt-1">Infinity</span>
+                            <span class="text-[9px] text-slate-400 font-normal leading-tight">No limits, relaxed puzzle play.</span>
+                        </button>
+                        <button onclick="startGame('timed')" class="bg-slate-900 border border-slate-800/80 hover:bg-slate-850 p-3 rounded-xl shadow-lg active:scale-95 transition-all flex flex-col items-start gap-1 group text-left">
+                            <i class="fa-regular fa-clock text-emerald-400 text-sm"></i>
+                            <span class="text-xs font-bold text-white mt-1">Timed</span>
+                            <span class="text-[9px] text-slate-400 font-normal leading-tight">Match as many as you can in 67s.</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Group 2: Grow Modes -->
+                <div>
+                    <span class="block text-[10px] text-emerald-500 uppercase tracking-widest font-extrabold mb-2 text-left px-1">Grow Modes (Scale 4x4 ➔ 9x9)</span>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="startGame('grow_infinity')" class="bg-gradient-to-br from-brand-950 to-slate-900 border border-brand-800/40 hover:from-brand-900 hover:to-slate-900 p-3 rounded-xl shadow-lg active:scale-95 transition-all flex flex-col items-start gap-1 group text-left">
+                            <div class="flex items-center justify-between w-full">
+                                <i class="fa-solid fa-up-right-and-down-left-from-center text-indigo-400 text-sm"></i>
+                                <span class="bg-indigo-500/20 text-indigo-300 text-[8px] font-bold px-1.5 py-0.5 rounded uppercase">NEW</span>
+                            </div>
+                            <span class="text-xs font-bold text-white mt-1">Grow Infinity</span>
+                            <span class="text-[9px] text-slate-400 font-normal leading-tight">Start 4x4. Grow board with points.</span>
+                        </button>
+                        <button onclick="startGame('grow_timed')" class="bg-gradient-to-br from-brand-950 to-slate-900 border border-brand-800/40 hover:from-brand-900 hover:to-slate-900 p-3 rounded-xl shadow-lg active:scale-95 transition-all flex flex-col items-start gap-1 group text-left">
+                            <div class="flex items-center justify-between w-full">
+                                <i class="fa-solid fa-hourglass-start text-emerald-400 text-sm"></i>
+                                <span class="bg-emerald-500/20 text-emerald-300 text-[8px] font-bold px-1.5 py-0.5 rounded uppercase">NEW</span>
+                            </div>
+                            <span class="text-xs font-bold text-white mt-1">Grow Timed</span>
+                            <span class="text-[9px] text-slate-400 font-normal leading-tight">67s sprint. Scale board on the fly!</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="text-center text-[10px] text-slate-500 mt-4 pb-2">
+            Designed for mobile. Enable audio for the full experience.
+        </div>
+    </div>
+
+    <!-- Main Game Play Interface -->
+    <div id="game-interface" class="flex-1 flex flex-col justify-between max-w-md mx-auto w-full p-4 relative hidden">
+        
+        <!-- Header: Score, Modes, Settings -->
+        <header class="flex items-center justify-between mb-2">
+            <div class="flex items-center gap-2">
+                <button onclick="exitToMenu()" class="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-900/80 border border-slate-800 hover:bg-slate-850 text-slate-300">
+                    <i class="fa-solid fa-arrow-left text-xs"></i>
+                </button>
+                <div class="px-3 py-1 bg-slate-900/80 border border-slate-800 rounded-xl flex items-center gap-2 text-xs">
+                    <span id="mode-pill" class="font-bold text-brand-300 uppercase tracking-wider text-[10px]">Infinity</span>
+                </div>
+            </div>
+
+            <!-- Sound toggles & High score -->
+            <div class="flex items-center gap-2">
+                <button onclick="toggleMute()" id="sound-btn" class="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-900/80 border border-slate-800 hover:bg-slate-850 text-slate-300">
+                    <i id="sound-icon" class="fa-solid fa-volume-high text-xs"></i>
+                </button>
+                <button onclick="scrambleBoard()" class="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-900/80 border border-slate-800 hover:bg-slate-850 text-slate-300" title="Scramble Board">
+                    <i class="fa-solid fa-shuffle text-xs"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Dynamic Status Section: Time Remaining / Total Words -->
+        <div class="grid grid-cols-2 gap-3 mb-3">
+            <!-- Score box -->
+            <div class="bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800/80 p-3 rounded-2xl flex items-center justify-between relative overflow-hidden shadow-lg">
+                <div>
+                    <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mb-0.5">SCORE</span>
+                    <span id="score-display" class="text-2xl font-black tracking-tight text-white neon-text">0</span>
+                </div>
+                <div class="text-right">
+                    <span class="text-[9px] text-slate-500 uppercase block">HI SCORE</span>
+                    <span id="hi-score-display" class="text-xs font-bold text-slate-300">0</span>
+                </div>
+                <!-- Mini background design -->
+                <div class="absolute -right-4 -bottom-4 opacity-5 pointer-events-none">
+                    <i class="fa-solid fa-trophy text-6xl text-white"></i>
+                </div>
+            </div>
+
+            <!-- Dynamic Right Info (Timer for Timed, Words Found for Infinity) -->
+            <div id="dynamic-info-panel" class="bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800/80 p-3 rounded-2xl flex items-center justify-between relative overflow-hidden shadow-lg">
+                <div class="flex-1">
+                    <span id="dynamic-title" class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mb-0.5">WORDS FOUND</span>
+                    <div class="flex items-baseline gap-1.5">
+                        <span id="dynamic-value" class="text-2xl font-black tracking-tight text-white">0</span>
+                        <span id="multiplier-badge" class="hidden text-[10px] font-extrabold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded">1x</span>
+                    </div>
+                </div>
+                <!-- Action circular visual indicator -->
+                <div class="relative w-10 h-10 flex items-center justify-center">
+                    <svg class="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                        <path class="text-slate-800" stroke-width="3" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                        <path id="progress-ring" class="text-brand-500" stroke-dasharray="100, 100" stroke-width="3" stroke-linecap="round" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                    </svg>
+                    <i id="dynamic-icon" class="fa-solid fa-spell-check absolute text-xs text-brand-400"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Custom Word Preview Bar (Shows selected word dynamically) -->
+        <div class="mb-3">
+            <div class="bg-slate-900/90 border border-slate-800/80 rounded-2xl h-11 px-4 flex items-center justify-between shadow-inner">
+                <div class="flex items-center gap-2">
+                    <span class="text-[10px] text-slate-500 font-bold uppercase">Selection:</span>
+                    <span id="word-preview" class="text-md font-extrabold tracking-widest text-brand-300 font-mono uppercase">---</span>
+                </div>
+                <div id="selection-status" class="hidden text-xs font-bold px-2 py-0.5 rounded">
+                    <!-- Dynamic validation states -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Dynamic Wordsearch Grid Wrapper -->
+        <div class="flex-1 flex items-center justify-center my-1 relative">
+            <div class="w-full aspect-square max-w-full bg-slate-950 border border-slate-800/80 rounded-2xl p-1.5 relative overflow-hidden shadow-2xl flex flex-col justify-between" id="grid-outer-container">
+                
+                <!-- Particle container overlay -->
+                <div id="particle-container"></div>
+                
+                <!-- SVG layer to draw line matching selections -->
+                <svg id="selection-svg" class="absolute inset-0 pointer-events-none z-10 w-full h-full">
+                    <line id="selection-line" x1="0" y1="0" x2="0" y2="0" stroke="rgba(139, 92, 246, 0.55)" stroke-width="18" stroke-linecap="round" />
+                </svg>
+
+                <!-- Grid columns (Dynamic column mapping based on grid sizes) -->
+                <div id="grid-container" class="grid gap-1 h-full w-full select-none">
+                    <!-- Cells injected by JavaScript -->
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Footer / Hints & Active Help panel -->
+        <footer class="mt-3">
+            <div class="bg-slate-900/60 backdrop-blur-md border border-slate-800/80 rounded-2xl p-3 shadow-lg">
+                <div class="flex items-center justify-between mb-2.5">
+                    <h4 class="text-[10px] text-slate-400 font-bold uppercase tracking-wider flex items-center gap-1.5">
+                        <i class="fa-solid fa-list text-brand-400"></i> Board Words Count
+                    </h4>
+                    <!-- Reveal hint button renamed to Hint -->
+                    <button onclick="triggerRevealHint()" class="text-[10px] text-emerald-400 hover:text-emerald-300 font-bold flex items-center gap-1 bg-emerald-500/10 px-3 py-0.5 rounded-full transition-colors active:scale-95 shadow-sm border border-emerald-500/10">
+                        <i class="fa-solid fa-lightbulb"></i> Hint
+                    </button>
+                </div>
+                
+                <!-- Hint List Area (Displays Word Counts) -->
+                <div id="hint-container" class="flex flex-wrap gap-2">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+        </footer>
+
+    </div>
+
+    <!-- Game Over Screen Modal -->
+    <div id="game-over-screen" class="fixed inset-0 bg-slate-950/95 backdrop-blur-md z-50 flex flex-col items-center justify-center p-6 hidden">
+        <div class="bg-slate-900/80 border border-slate-800 rounded-3xl p-8 max-w-sm w-full text-center relative overflow-hidden shadow-2xl">
+            <!-- Trophy animation effect -->
+            <div class="w-16 h-16 bg-yellow-500/10 text-yellow-500 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-yellow-500/20">
+                <i class="fa-solid fa-trophy text-2xl"></i>
+            </div>
+
+            <h2 class="text-2xl font-black mb-1 text-slate-100">Challenge Completed!</h2>
+            <p id="game-over-subtitle" class="text-slate-400 text-xs mb-6">You've survived the challenge.</p>
+
+            <div class="grid grid-cols-2 gap-4 mb-6">
+                <div class="bg-slate-950 border border-slate-800 p-3 rounded-xl">
+                    <span class="text-[10px] text-slate-500 block uppercase font-bold">Your Score</span>
+                    <span id="final-score" class="text-2xl font-black text-white">0</span>
+                </div>
+                <div class="bg-slate-950 border border-slate-800 p-3 rounded-xl">
+                    <span class="text-[10px] text-slate-500 block uppercase font-bold">Total Words</span>
+                    <span id="final-words" class="text-2xl font-black text-emerald-400">0</span>
+                </div>
+            </div>
+
+            <div class="flex flex-col gap-2">
+                <button onclick="retryGame()" class="w-full bg-gradient-to-r from-brand-600 to-violet-600 hover:from-brand-500 hover:to-violet-500 text-white font-bold py-3.5 px-6 rounded-xl shadow-lg shadow-brand-600/20 active:scale-95 transition-all text-sm">
+                    Play Again
+                </button>
+                <button onclick="exitToMenu()" class="w-full bg-slate-950 border border-slate-800 hover:bg-slate-850 text-slate-300 font-bold py-2.5 px-6 rounded-xl active:scale-95 transition-all text-xs">
+                    Main Menu
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dictionary Initialization & Core Game Logic -->
+    <script>
+        // --- BUILT-IN COMMON WORD DICTIONARY (Significantly Expanded 3-Letter Words) ---
+        const DICTIONARY_RAW = [
+            // Robust 3-Letter Words Suite
+            "THE", "AND", "ARE", "FOR", "NOT", "BUT", "YOU", "RUN", "FLY", "SEE", "DOG", "CAT", "BOX", "SUN", "BOY", "TOY", "RED", "GET", "OUT", "HOW", "HOT", "NEW", "OLD", "BIG", "RAW", "TEN", "OAK", "MAP", "CAR", "BUS", "WIN", "NET", "COB", "CUP", "PIN", "PEN", "HAT", "BAG", "DIG", "FIT", "HIT", "KEY", "LEG", "LIP", "MAD", "MIX", "NUT", "PET", "SAD", "TAG", "VAN", "WET", "ZIP", "YES", "OWN", "AIR", "ICE", "WAR", "EAR", "EYE", "JOY", "CRY", "TRY", "LOW", "ROW", "SEA", "WAY", "DAY", "END", "NOW", "ONE", "TWO", "USE", "WHO", "WHY", "ASK", "BAD", "CUT", "DRY", "EAT", "FAR", "FIX", "FUN", "ILL", "JOB", "LAY", "LIE", "MAN", "PAY", "SIT", "TAX", "TON", "YET", "ACT", "ADD", "AGE", "AGO", "AIM", "ALE", "ALL", "APE", "ARM", "ART", "ASH", "AWE", "AXE", "BAN", "BAR", "BAT", "BED", "BEE", "BEG", "BET", "BIN", "BIT", "BOW", "BUD", "BUG", "BUM", "BYE", "CAB", "CAN", "CAP", "COW", "COY", "CUB", "CUE", "DAM", "DEN", "DEW", "DID", "DIM", "DIN", "DIP", "DOE", "DON", "DOT", "DUE", "DUG", "DYE", "EEL", "EGO", "ELF", "ELK", "ELM", "ERA", "ERR", "EVE", "FAN", "FAT", "FED", "FEW", "FIB", "FIG", "FIN", "FIR", "FOE", "FOG", "FOX", "FRY", "GAP", "GAS", "GEM", "GIG", "GIN", "GOD", "GUM", "GUT", "GUY", "GYM", "HAM", "HAY", "HEM", "HEN", "HER", "HEY", "HIM", "HIP", "HIS", "HOG", "HOP", "HUG", "HUM", "HUT", "INK", "INN", "ION", "ITS", "IVY", "JAM", "JAR", "JAW", "JET", "JIG", "JOG", "JOT", "KEG", "KEN", "KID", "KIN", "KIT", "LAB", "LAD", "LAG", "LAP", "LAW", "LEA", "LED", "LET", "LID", "LOB", "LOG", "LOP", "LOT", "LUG", "LUX", "LYE", "MAT", "MAY", "MED", "MEN", "MET", "MID", "MOB", "MOD", "MOP", "MOW", "MUD", "MUG", "MUM", "NAB", "NAG", "NAY", "NEO", "NIB", "NIL", "NIP", "NOD", "NON", "NOR", "NUN", "NUT", "OAF", "OAR", "OAT", "ODD", "ODE", "OFF", "OFT", "OIL", "OPT", "ORB", "ORE", "OUR", "OUT", "OVA", "OWE", "OWL", "OWN", "PAD", "PAL", "PAN", "PAR", "PAT", "PAW", "PAY", "PEA", "PEG", "PEP", "PER", "PET", "PEW", "PIG", "PIN", "PIP", "PIT", "PLY", "POD", "POP", "POT", "PRO", "PRY", "PUB", "PUG", "PUN", "PUP", "PUT", "RAD", "RAG", "RAM", "RAN", "RAP", "RAT", "RAY", "REF", "REG", "REP", "RIB", "RID", "RIG", "RIM", "RIP", "ROB", "ROD", "ROE", "ROT", "ROW", "RUB", "RUE", "RUG", "RUM", "RUT", "RYE", "SAC", "SAG", "SAP", "SAT", "SAW", "SAY", "SEC", "SEE", "SEN", "SET", "SEW", "SEX", "SHE", "SHY", "SIB", "SIN", "SIP", "SIR", "SIS", "SIT", "SIX", "SKI", "SKY", "SLY", "SOB", "SOD", "SOL", "SON", "SOP", "SOW", "SOY", "SPA", "SPY", "SUB", "SUE", "SUM", "SUP", "TAB", "TAD", "TAG", "TAN", "TAP", "TAR", "TAT", "TAX", "TEA", "TED", "TEE", "TEN", "THE", "THO", "THY", "TIC", "TIE", "TIN", "TIP", "TIT", "TOD", "TOE", "TOG", "TOM", "TON", "TOO", "TOP", "TOT", "TOW", "TOY", "TRY", "TUB", "TUG", "TUN", "TUT", "TUX", "TWO", "UFO", "UGH", "UMP", "URN", "USE", "VAN", "VAT", "VET", "VEX", "VIA", "VOW", "WAD", "WAG", "WAN", "WAR", "WAS", "WET", "WHO", "WHY", "WIG", "WIN", "WIT", "WOE", "WOK", "WON", "WOO", "WOW", "WRY", "YAK", "YAM", "YAP", "YAW", "YEA", "YEN", "YEP", "YES", "YET", "YEW", "YIP", "YOB", "YOU", "YOW", "YUM", "YUP", "ZAG", "ZAP", "ZED", "ZEE", "ZEN", "ZIG", "ZIP", "ZIT", "ZOO",
+            // 4-Letter Words
+            "ABLE", "ACID", "ACRE", "ACTS", "AGED", "ALGE", "ALSO", "AMEN", "ANEW", "APEX", "APES", "ARCH", "AREA", "ARMS", "ARMY", "ARTS", "ATOM", "AUNT", "AURA", "AUTO",
+            "BABY", "BACK", "BAKE", "BALL", "BAND", "BANK", "BARE", "BARK", "BARN", "BASE", "BASH", "BATH", "BEAK", "BEAM", "BEAN", "BEAR", "BEAT", "BEEF", "BEER", "BELL", "BELT", "BEND", "BEST", "BETA", "BIAS", "BIDS", "BIKE", "BILL", "BIND", "BIRD", "BITE", "BLOW", "BLUE", "BOAT", "BODY", "BOIL", "BOLD", "BOND", "BONE", "BOOK", "BOOM", "BOOT", "BOSS", "BOTH", "BOWL", "BULB", "BULL", "BUMP", "BURN", "BUSH", "BUSY", "BUZZ",
+            "CAGE", "CAKE", "CALF", "CALL", "CALM", "CAMP", "CANE", "CANS", "CAPE", "CARD", "CARE", "CASE", "CASH", "CAST", "CAVE", "CELL", "CENT", "CHEF", "CHIN", "CHIP", "CHOP", "CITY", "CLAN", "CLAW", "CLAY", "CLIP", "CLUB", "COAL", "COAT", "CODE", "COIL", "COIN", "COLD", "CONE", "COOK", "COOL", "COPE", "COPY", "CORD", "CORE", "CORK", "CORN", "COST", "COUP", "COVE", "COW", "CRAB", "CREW", "CROP", "CROW", "CUBE", "CULT", "CUP", "CURE", "CURL", "CUTE",
+            "DARE", "DARK", "DART", "DASH", "DATA", "DATE", "DAWN", "DAYS", "DEAD", "DEAF", "DEAL", "DEAR", "DEBT", "DECK", "DEED", "DEEM", "DEER", "DEFI", "DEFY", "DELI", "DENT", "DESK", "DIAL", "DIET", "DIGS", "DIME", "DINE", "DINT", "DIRT", "DISC", "DISH", "DISK", "DIVE", "DOCK", "DOES", "DOGS", "DOLL", "DOME", "DONE", "DOOR", "DOSE", "DOWN", "DRAB", "DRAG", "DRAW", "DREW", "DROP", "DRUM", "DUCK", "DUCT", "DUEL", "DUET", "DUKE", "DULL", "DUNE", "DUST", "DUTY",
+            "EACH", "EARN", "EARS", "EASE", "EAST", "EASY", "EATS", "ECHO", "EDGE", "EDIT", "EELS", "EGGS", "ELSE", "EMIT", "ENDS", "ENVY", "EPIC", "ETCH", "EVEN", "EVER", "EVIL", "EXAM", "EXIT", "EYES",
+            "FACE", "FACT", "FADE", "FAIL", "FAIR", "FAKE", "FALL", "FAME", "FANG", "FANS", "FARE", "FARM", "FAST", "FATE", "FEAR", "FEAT", "FEED", "FEEL", "FEET", "FELL", "FEST", "FIBER", "FIFE", "FIGS", "FILE", "FILL", "FILM", "FIND", "FINE", "FINS", "FIRE", "FIRM", "FISH", "FIST", "FITS", "FIVE", "FLAG", "FLAK", "FLAM", "FLAP", "FLAT", "FLAW", "FLED", "FLEE", "FLEW", "FLEX", "FLIP", "FLOW", "FLUE", "FLUX", "FLYER", "FOAM", "FOIL", "FOLD", "FOLK", "FONT", "FOOD", "FOOL", "FOOT", "FORD", "FORE", "FORK", "FORM", "FORT", "FOUL", "FOUR", "FOWL", "FREE", "FROG", "FROM", "FUEL", "FULL", "FUME", "FUND", "FURY", "FUSE", "FUZZ",
+            "GAGE", "GAIN", "GALE", "GAME", "GANG", "GATE", "GAVE", "GAZE", "GEAR", "GELD", "GEMS", "GENT", "GERM", "GIFT", "GILL", "GIRD", "GIRL", "GLAD", "GLEE", "GLEN", "GLOW", "GLUE", "GOAL", "GOAT", "GOLD", "GOLF", "GONE", "GOOD", "GORE", "GOWN", "GRAB", "GRAY", "GREW", "GRID", "GRIN", "GRIP", "GRIT", "GROW", "GULF", "GULL", "GUMS", "GURU", "GUSH", "GUST", "GYRO",
+            "HAIR", "HALF", "HALL", "HALT", "HAND", "HANG", "HARE", "HARK", "HART", "HASH", "HATE", "HAWK", "HAZE", "HEAD", "HEAL", "HEAR", "HEAT", "HECK", "HEEL", "HEIR", "HELD", "HELM", "HELP", "HEMP", "HERD", "HERE", "HERO", "HERS", "HIDE", "HIGH", "HIKE", "HILL", "HILT", "HIND", "HINT", "HIRE", "HITS", "HIVE", "HOAX", "HOBO", "HOLD", "HOLE", "HOME", "HONE", "HOOF", "HOOK", "HOOP", "HOPE", "HORN", "HOSE", "HOST", "HOUR", "HOWL", "HUGE", "HULL", "HUNG", "HUNT", "HURT", "HUSH", "HYMN",
+            "ICON", "IDEA", "IDLE", "IDOL", "INCH", "INFO", "INKS", "INTO", "IONS", "IRIS", "IRON", "ISLE", "ITCH", "ITEM", "KEYS", "KICK", "KILN", "KILO", "KIND", "KING", "KISS", "KITE", "KIVI", "KNEE", "KNEW", "KNIT", "KNOT", "KNOW",
+            "LACE", "LACK", "LADY", "LAID", "LAKE", "LAMB", "LAMP", "LAND", "LANE", "LARK", "LASH", "LAST", "LATE", "LAVA", "LAWN", "LAWS", "LAYA", "LAZY", "LEAD", "LEAF", "LEAK", "LEAN", "LEAP", "LEST", "LEFT", "LEGO", "LENS", "LENT", "LESS", "LEST", "LEVY", "LIAR", "LICE", "LICK", "LIDS", "LIFE", "LIFT", "LIKE", "LIMB", "LIME", "LIMP", "LINE", "LINK", "LINT", "LION", "LIPS", "LISP", "LIST", "LIVE", "LOAD", "LOAF", "LOAM", "LOAN", "LOBE", "LOCK", "LOFT", "LOGS", "LONG", "LOOK", "LOOM", "LOOP", "LOOT", "LORD", "LOSE", "LOSS", "LOST", "LOUD", "LOVE", "LOWS", "LUBE", "LUCK", "LUMP", "LUNG", "LUSH", "LUTE", "LUXURY",
+            "MACE", "MADE", "MAID", "MAIL", "MAIN", "MAKE", "MALE", "MALT", "MANE", "MANY", "MAPS", "MARE", "MARK", "MARS", "MASH", "MASK", "MAST", "MATE", "MATH", "MAUL", "MAXI", "MAZE", "MEAD", "MEAL", "MEAN", "MEAT", "MEET", "MELT", "MEMO", "MEND", "MENU", "MESS", "META", "METE", "MICA", "MICE", "MILD", "MILE", "MILK", "MILL", "MIME", "MIND", "MINE", "MINI", "MINT", "MINX", "MIRE", "MIST", "MITE", "MOAN", "MOAT", "MOCK", "MODE", "MOIST", "MOLD", "MOLE", "MONK", "MOOD", "MOON", "MOOR", "MOOT", "MOSS", "MOST", "MOTE", "MOTH", "MOVE", "MUCH", "MUCK", "MUDDY", "MUFF", "MULE", "MULL", "MUSE", "MUSH", "MUST", "MUTE", "MUTT", "MYTH",
+            "NAIL", "NAME", "NAPE", "NEAR", "NEAT", "NECK", "NEED", "NEON", "NEST", "NETS", "NEWT", "NEXT", "NICE", "NINE", "NODE", "NOCK", "NOON", "NOSE", "NOTE", "NOUN", "NUDE", "NUTS", "OAKS", "OARS", "OATH", "OBEY", "OBLIQ", "ODOR", "OGRE", "OILS", "OINK", "OMEN", "ONCE", "ONES", "ONLY", "ONTO", "ONUS", "ONYX", "OPAL", "OPEN", "OPUS", "ORAL", "ORBS", "ORCA", "ORES", "ORGAN", "OTTER", "OURS", "OUST", "OVAL", "OVEN", "OVER", "OWLS", "OWNER", "OXEN",
+            "PACE", "PACK", "PACT", "PAGE", "PAID", "PAIN", "PAIR", "PALE", "PALM", "PANE", "PANG", "PANS", "PANT", "PAST", "PATH", "PAVE", "PEAK", "PEAL", "PEAR", "PEAT", "PECK", "PEEL", "PEER", "PENS", "PEST", "PETS", "PICK", "PINE", "PINK", "PINT", "PIPE", "PITY", "PLAN", "PLAY", "PLEA", "PLOT", "PLUG", "PLUM", "PLUS", "POEM", "POET", "POKE", "POLE", "POLL", "POND", "PONY", "POOL", "POOR", "POPE", "PORT", "POSE", "POST", "POUR", "POUT", "PRAY", "PREP", "PREY", "PROP", "PUCK", "PUFF", "PULL", "PULP", "PUMA", "PUMP", "PUNK", "PUPY", "PURE", "PUSH", "QUAD", "QUAK", "REAP", "REDE", "REST", "RICH", "RIDE", "RING", "RISE", "RISK", "ROAD", "ROCK", "ROOF", "ROOT", "ROSE", "RUSH", "RUST",
+            "SACK", "SAFE", "SAGE", "SAID", "SAIL", "SALE", "SALT", "SAME", "SAND", "SANG", "SANG", "SANK", "SAVE", "SAWS", "SAYS", "SCAB", "SCAN", "SCAR", "SEAL", "SEAM", "SEAS", "SEAT", "SECT", "SEED", "SEEK", "SEEM", "SEEN", "SEEP", "SELF", "SELL", "SEND", "SENT", "SEPT", "SERF", "SETS", "SEWN", "SHAD", "SHAG", "SHAH", "SHAM", "SHAW", "SHED", "SHIN", "SHIP", "SHOE", "SHOP", "SHOT", "SHOW", "SHUN", "SHUT", "SICK", "SIDE", "SIFT", "SIGH", "SIGN", "SILK", "SILO", "SILT", "SINE", "SING", "SINK", "SINS", "SIRE", "SITE", "SIZE", "SKEW", "SKID", "SKIN", "SKIP", "SKIS", "SLAB", "SLAM", "SLAP", "SLAT", "SLED", "SLEW", "SLID", "SLIM", "SLIP", "SLIT", "SLOP", "SLOT", "SLOW", "SLUG", "SLUM", "SLUR", "SMOG", "SMUG", "SNAP", "SNIP", "SNOB", "SNOW", "SNUG", "SOAK", "SOAP", "SOAR", "SOBS", "SODA", "SOFA", "SOFT", "SOIL", "SOLD", "SOLE", "SOLO", "SOME", "SONG", "SONS", "SOON", "SOOT", "SORE", "SORT", "SOUL", "SOUP", "SOUR", "SOWN", "SPAN", "SPAR", "SPAT", "SPED", "SPEW", "SPIN", "SPIT", "SPOT", "SPUN", "SPUR", "STAB", "STAG", "STAR", "STAY", "STEM", "STEP", "STEW", "STIR", "STOP", "STOW", "STUD", "SUCH", "SUDS", "SUED", "SUIT", "SULF", "SUMO", "SUMS", "SUNG", "SUNK", "SURE", "SURF", "SWAM", "SWAN", "SWAP", "SWAT", "SWAY", "SWEY", "SWIM", "SWUM", "TACK", "TACT", "TAIL", "TAKE", "TALC", "TALE", "TALK", "TALL", "TAME", "TANG", "TANK", "TAPE", "TAPS", "TART", "TASK", "TAUT", "TAXI", "TEAL", "TEAM", "TEAR", "TEAS", "TECH", "TEEM", "TEEN", "TEETH", "TELL", "TENT", "TERM", "TEST", "TEXT", "THAT", "THEM", "THEN", "THEY", "THIN", "THIS", "THOU", "THUD", "THUG", "TICK", "TIDE", "TIDY", "TIE", "TIER", "TIFF", "TILE", "TILL", "TILT", "TIME", "TINE", "TINT", "TIPS", "TIRE", "TOAD", "TOES", "TOFU", "TOLL", "TOMB", "TONE", "TONS", "TOOK", "TOOL", "TOOT", "TOPS", "TORE", "TORN", "TOSS", "TOUR", "TOUT", "TOWN", "TOYS", "TRAM", "TRAY", "TREE", "TREK", "TRIM", "TRIO", "TRIP", "TROT", "TRUE", "TUBA", "TUBE", "TUFT", "TUNA", "TUNE", "TURF", "TURN", "TUSK", "TUTU", "TWIG", "TWIN", "TWIT", "TWO", "TYPE", "TYPO", "UNIT", "UNTO", "UPON", "URGE", "USED", "USER", "UTTER",
+            // 5-8 Letters Expanded
+            "ABOUT", "ABOVE", "ACTION", "ACTIVE", "ADVENT", "AFFAIR", "AFRAID", "ALMOST", "ALONG", "ALPHA", "ALTER", "AMONG", "ANGEL", "ANGER", "ANIMAL", "ANSWER", "APOLLO", "APPEAL", "ARGUE", "ARMOR", "AROUND", "ARROW", "ARTIST", "ASPECT", "ASSIST", "ASTEROID", "ATTACK", "AUTUMN", "AVOID", "AWAKE",
+            "BADGE", "BAKERY", "BALLET", "BANANA", "BARREL", "BASKET", "BEAUTY", "BEFORE", "BEGAN", "BEGIN", "BEHIND", "BELIEF", "BELOW", "BENEATH", "BETTER", "BEYOND", "BISHOP", "BITTER", "BLANK", "BLAST", "BLAZER", "BLIND", "BLOCK", "BLOOD", "BOARD", "BOUNCY", "BRAIN", "BRAVE", "BREAD", "BREAK", "BREEZE", "BRICK", "BRIDGE", "BRIGHT", "BROAD", "BROKEN", "BRONZE", "BROWN", "BRUSH", "BUBBLE", "BUDGET", "BUFFER", "BULLET", "BUNDLE", "BUTTER", "BUTTON",
+            "CABIN", "CAMERA", "CANDLE", "CANYON", "CARBON", "CAREER", "CARPET", "CASTLE", "CAVITY", "CENTER", "CHANCE", "CHANGE", "CHANNEL", "CHARGE", "CHARIOT", "CHART", "CHASE", "CHEAP", "CHEESE", "CHERRY", "CHEST", "CHIEF", "CHILD", "CHOICE", "CHORUS", "CHURCH", "CIGAR", "CIRCLE", "CITIZEN", "CLAMOR", "CLASS", "CLEAN", "CLEAR", "CLERK", "CLEVER", "CLIENT", "CLIFF", "CLIMB", "CLOCK", "CLOSE", "CLOTH", "CLOUD", "CLOVER", "CLUTCH", "COAST", "COBALT", "COFFEE", "COLLAR", "COLONY", "COLORS", "COLUMN", "COMBAT", "COMEDY", "COMET", "COMMON", "COSMOS", "COTTON", "COUSIN", "CRADLE", "CRAFT", "CRATER", "CRAYON", "CREAM", "CREATE", "CREDIT", "CRISIS", "CRITIC", "CROSS", "CROWN", "CRUDE", "CRUST", "CRYSTAL", "CUBIC", "CULTURE", "CUSTARD",
+            "DAMAGE", "DANCER", "DANGER", "DEBATE", "DECADE", "DECENT", "DECIDE", "DECREE", "DEEPEN", "DEFEND", "DEFINE", "DEGREE", "DEPART", "DEPUTY", "DERBY", "DESERT", "DESIGN", "DESIRE", "DETAIL", "DETECT", "DEVICE", "DEVOTE", "DIALECT", "DIAMOND", "DIARY", "DIESEL", "DIFFER", "DIGITAL", "DINNER", "DIRECT", "DIVIDE", "DIVINE", "DOCTOR", "DOLLAR", "DOMAIN", "DONKEY", "DOUBLE", "DRAGON", "DREAM", "DRIFT", "DRINK", "DRIVER", "DROWN", "DYNAMIC", "DYNAMO",
+            "EARTH", "EASILY", "ECCENT", "ECHOES", "ECLIPSE", "EDITOR", "EFFECT", "EFFORT", "EIGHTY", "EITHER", "ELASTIC", "ELDERS", "ELEVATE", "EMERALD", "EMPIRE", "EMPLOY", "ENERGY", "ENGINE", "ENOUGH", "ENTER", "ENTIRE", "ENTITY", "ENVELO", "ENZYME", "EQUALS", "ESCAPE", "ESCAPE", "ESSAY", "ESTATE", "ETHICS", "EVAPOR", "EVENTS", "EXCEED", "EXCEPT", "EXCITE", "EXCUSE", "EXEMPT", "EXILE", "EXISTS", "EXPAND", "EXPECT", "EXPERT", "EXPORT", "EXTEND", "EXTENT",
+            "FABRIC", "FACTOR", "FAILED", "FAIRLY", "FAITH", "FAMILY", "FAMOUS", "FARMER", "FATHER", "FAULTY", "FAVOR", "FEARLESS", "FELLOW", "FEMALE", "FENDER", "FERRET", "FIBER", "FIELD", "FIERCE", "FIESTA", "FIFTY", "FIGURE", "FILTER", "FINALE", "FINALS", "FINISH", "FISCAL", "FITNESS", "FLIGHT", "FLOWER", "FLUENT", "FLYING", "FOCUS", "FOREST", "FORMAL", "FORMAT", "FORMER", "FOSSIL", "FOSTER", "FOUND", "FOURTH", "FREEZE", "FRENCH", "FRIEND", "FRINGE", "FROZEN", "FRUITS", "FUTURE",
+            "GALAXY", "GALLON", "GAMBLE", "GARDEN", "GARLIC", "GASKET", "GATHER", "GAZETTE", "GENTLE", "GERMAN", "GEYSER", "GHOST", "GIANT", "GIGATE", "GLASS", "GLIDER", "GLOBAL", "GLOVES", "GOLDEN", "GOVERN", "GRACE", "GRADE", "GRAIN", "GRAND", "GRANITE", "GRAPE", "GRAPH", "GRASS", "GRAVE", "GRAVITY", "GREAT", "GREEN", "GROUND", "GROUPS", "GROWTH", "GUARD", "GUEST", "GUIDE", "GUITAR", "GUTTER",
+            "HABIT", "HAMMER", "HANDLE", "HANGER", "HAPPEN", "HAPPY", "HARBOR", "HARDEN", "HARVEST", "HATRED", "HAZARD", "HEADER", "HEALTH", "HEARST", "HEART", "HEAVEN", "HEAVY", "HECTOR", "HEIGHT", "HELMET", "HEROIC", "HIDDEN", "HIGHER", "HIGHWAY", "HINDER", "HINTED", "HISTORY", "HOCKEY", "HOLDEN", "HOLLOW", "HOMAGE", "HONEST", "HONEY", "HONOR", "HOOVER", "HORIZON", "HORNET", "HORROR", "HOSTEL", "HOTEL", "HOVER", "HUMAN", "HUMBLE", "HUNGER", "HUNTER", "HURDLE", "HYBRID",
+            "ICONIC", "IDEALS", "IGNORE", "IMAGE", "IMPACT", "IMPORT", "IMPOSE", "INCHES", "INCOME", "INDEED", "INDEX", "INDIAN", "INDIGO", "INFANT", "INFORM", "INGRAM", "INJECT", "INJURY", "INLAND", "INSECT", "INSIDE", "INSIST", "INTENT", "INTERN", "INVADE", "INVENT", "INVEST", "INVITE", "INWARD", "IONIC", "ISLAND", "ISSUES", "ITALIC", "JACKET", "JAGUAR", "JERSEY", "JESTER", "JEWELS", "JOINED", "JOINT", "JORDAN", "JOSEPH", "JOURNEY", "JUDGE", "JUNGLE", "JUNIOR", "JUSTICE",
+            "KARATE", "KEEPER", "KERNEL", "KETTLE", "KIDNEY", "KINDLY", "KINETIC", "KINGDOM", "KITCHEN", "KNIGHT", "LABELS", "LABOR", "LADDER", "LAGOON", "LANCER", "LANDING", "LANTERN", "LAPTOP", "LARGER", "LARVAL", "LASERS", "LATENT", "LATEST", "LATITUDE", "LAUGHS", "LAUNCH", "LAUREL", "LAVENDER", "LAYERS", "LAYOUT", "LEADER", "LEAGUE", "LEARN", "LEASED", "LEATHER", "LEGACY", "LEGEND", "LENGTH", "LENSES", "LEOPARD", "LETTER", "LEVELS", "LIBERA", "LIGHTS", "LINEAR", "LIONESS", "LIQUID", "LISTEN", "LITTER", "LIVELY", "LIVELY", "SOLVER", "SOMBER", "SONATA", "SORROW", "SOUGHT", "SOUNDS", "SOURCE", "SOUTHEY", "SPACES", "SPARE", "SPARKS", "SPATIAL", "SPEARS", "SPEECH", "SPEEDY", "SPELLS", "SPHERE", "SPIDER", "SPIGOT", "SPINAE", "SPIRAL", "SPIRIT", "SPLASH", "SPLEEN", "SPLINE", "SPLIT", "SPOKES", "SPONGE", "SPOONS", "SPORTS", "SPOTS", "SPOUSE", "SPREAD", "SPRING", "SPRINT", "SPRUCE", "SPUNKY", "SQUAD", "SQUARE", "SQUASH", "STABLE", "STACKS", "STAFFS", "STAGES", "STAINS", "STAIRS", "STAKES", "STALKS", "STAMEN", "STAMPS", "STANCE", "STANDS", "STAPLE", "STARCH", "STARED", "STARTS", "STARVE", "STATED", "STATES", "STATIC", "STATUE", "STATUS", "STAVES", "STAYS", "STEADY", "STEAKS", "STEALS", "STEAMY", "STEELS", "STEERA", "STELLAR", "STEMS", "STENCIL", "STEREO", "STERLE", "STEWED", "STICKS", "STICKY", "STIFF", "STILLS", "STINGS", "STINGY", "STITCH", "STOCKS", "STOKES", "STOLEN", "STONES", "STONEY", "STOOLS", "STOPS", "STORED", "STORES", "STORMS", "STORMY", "STORYS", "STOVES", "STRAIN", "STRAND", "STRAPS", "STRATA", "STRAWS", "STREAK", "STREAM", "STREET", "STRESS", "STRICT", "STRIDE", "STRIKE", "STRING", "STRIP", "STROKE", "STRONGLY", "STRUCK", "STRUCT", "STRUTS", "STUCCO", "STUDIO", "STUDY", "STUFFS", "STUFFY", "STUMPS", "STUNNING", "STUNT", "STYLUS", "SUBDUE", "SUBMIT", "SUBSET", "SUBTLE", "SUBURB", "SUBWAY", "SUCKER", "SUDDEN", "SUFFER", "SUGARS", "SUGARY", "SUITED", "SUITES", "SULFUR", "SULTAN", "SUMMAR", "SUMMIT", "SUMMON", "SUNDAE", "SUNDAY", "SUNSET", "SUPERB", "SUPPLE", "SUPPLY", "SUPPORT", "SUPREM", "SURELY", "SURFER", "SURGES", "SURPLUS", "SURVEY", "SURVIV", "SUTURE", "SWAMPY", "SWARMS", "SWEARS", "SWEATY", "SWEDEN", "SWEEPS", "SWEETS", "SWEETY", "SWELLS", "SWERVE", "SWIFTY", "SWINGS", "SWIPE", "SWIRL", "SWITCH", "SWIVEL", "SWORDS", "SYMBOL", "SYSTEM",
+            "TABLES", "TABLET", "TACKLE", "TACTIC", "TAGGER", "TAILOR", "TALENT", "TALKED", "TALKER", "TALLER", "TALLOW", "TALMUD", "TAMING", "TANDEM", "TANGLE", "TANKER", "TAPERS", "TAPING", "TARGET", "TARIFF", "TASSEL", "TASTED", "TASTER", "TASTES", "TASTEY", "TATTOO", "TAUGHT", "TAVERN", "TAXING", "TEACH", "TEAMS", "TEAPOT", "TEASER", "TEASING", "TECHNO", "TEDDY", "TEEMING", "TEENS", "TEETH", "TELLER", "TEMPLE", "TENANT", "TENDER", "TENDON", "TENNIS", "TENORS", "TENSEY", "TENSOR", "TENTH", "TENURE", "TERMS", "TERRAIN", "TERROR", "TESTED", "TESTER", "TETHER", "TEXTS", "THANKS", "THEORY", "THERMAL", "THESIS", "THIGHS", "THINGS", "THINLY", "THIRDS", "THIRST", "THIRTY", "THOMAS", "THORAX", "THORNS", "THORNY", "THREAD", "THREAT", "THREE", "THRIFT", "THRILL", "THRIVE", "THROAT", "THRONE", "THRONG", "THRUSH", "THRUST", "THUMBS", "TICKET", "TIDAL", "TIDIED", "TIGHTS", "TIMBER", "TIMELY", "TIMERS", "TIMING", "TINDER", "TINKER", "TINSEL", "TINTED", "TIPPED", "TIPPER", "TOADEY", "TOASTS", "TOASTY", "TOBACCO", "TODDLER", "TOGETHER", "TOILET", "TOKENS", "TOLER", "TOLLWAY", "TOMATO", "TONGUE", "TOPIC", "TOPPED", "TOPPER", "TORCH", "TORNAD", "TORQUE", "TORREN", "TOSSING", "TOTALS", "TOUCHY", "TOWELS", "TOWERS", "TOWNER", "TOXINS", "TRACER", "TRACKS", "TRACTS", "TRADER", "TRADES", "TRAFIC", "TRAILS", "TRAINY", "TRAITS", "TRAMPS", "TRANS", "TRAPED", "TRAPPER", "TRAVEL", "TREADS", "TREATS", "TREBLE", "TREKED", "TREMOR", "TRENCH", "TRENDS", "TRENDY", "TRIAL", "TRIANG", "TRIBES", "TRICKS", "TRICKY", "TRIFLE", "TRIGGER", "TRIMER", "TRIPLE", "TRIPOD", "TRIVIA", "TROPHY", "TROPIC", "TROTS", "TROUGH", "TROUPE", "TROWEL", "TRUCKS", "TRUDGE", "TRUEST", "TRUMPE", "TRUNKS", "TRUSTY", "TRUTHS", "TUBING", "TUBULAR", "TUCKED", "TUCKER", "TUESDA", "TULIPS", "TUMBLE", "TUMOR", "TUNING", "TUNNEL", "TURBIN", "TURKEY", "TURNING", "TURNIP", "TURRET", "TURTLE", "TUSKED", "TUTORS", "TUXEDO", "TWELVE", "TWENTY", "TWIGGY", "TWILIG", "TWINED", "TWINNS", "TWIRL", "TWISTY", "TWITCH", "TYPIST", "TYPOGR", "ULCERS", "UMPIRES", "UNABLE", "UNCLES", "UNDER", "UNEASY", "UNFOLD", "UNICON", "UNION", "UNIQUE", "UNISON", "UNITS", "UNITED", "UNITYS", "UNJUST", "UNLESS", "UNPLUG", "UNREAL", "UNTIDY", "UNTOLD", "UPWARD", "URGENT", "URGING", "USABLE", "USAGE", "USEFUL", "UTTER", "VACANT", "VACUUM", "VALLEY", "VALVED", "VALVES", "VANISH", "VAPORS", "VECTER", "VEILAD", "VELVET", "VENEER", "VENOM", "VENTIL", "VENTUR", "VERBAL", "VERDICT", "VERGER", "VERSES", "VESSEL", "VESTED", "VIABLE", "VICTIM", "VICTOR", "VIDEOS", "VIEWER", "VIGOR", "VIOLIN", "VIRGIN", "VIRTUE", "VISION", "VISUAL", "VOICES", "VOLCAN", "VORTEX", "VOWELS", "VOYAGE", "WAFERS", "WAGGON", "WALKED", "WALKER", "WALLET", "WALNUT", "WANDER", "WANTED", "WARBLER", "WARDEN", "WARMED", "WARMER", "WARMTH", "WARNING", "WARPED", "WARREN", "WASHED", "WASHER", "WASTED", "WASTER", "WASTES", "WATERS", "WATERY", "WAVING", "WEAKEN", "WEALTH", "WEAPON", "WEARER", "WEASEL", "WEAVED", "WEAVER", "WEBING", "WEDGED", "WEDGES", "WEEKLY", "WEEPIN", "WEIGHS", "WEIGHT", "WELDED", "WELDER", "WELLS", "WHEELS", "WHILST", "WHINES", "WHIPED", "WHIRL", "WHISKY", "WHITER", "WHOLLY", "WICKED", "WIDELY", "WIDOWS", "WILDER", "WILDLY", "WILTED", "WINDER", "WINDOW", "WINTER", "WIRING", "WISDOM", "WISHED", "WISHES", "WITHIN", "WIZARD", "WOLVES", "WONDER", "WOODED", "WOODEN", "WOOLEN", "WORDSY", "WORKED", "WORKER", "WORLDS", "WORMSY", "WORRYS", "WREATH", "WRECK", "WRIST", "WRITER", "WRITES", "WRONG", "YACHTS", "YAWNING", "YEARLY", "YELLOW", "YIELDS", "YOUTHS", "ZEBRAS", "ZENITH", "ZEROED", "ZESTEY", "ZIPPER", "ZODIAC"
+        ];
+
+        // Convert raw dictionary to a standard Set for instant O(1) searches
+        const DICTIONARY = new Set(DICTIONARY_RAW.map(w => w.toUpperCase()));
+
+        // --- GAME STATE VARIABLES ---
+        let boardState = {
+            grid: [],             // Dynamic matrix of letters
+            gridSize: 9,          // Variable size: 4x4 up to 9x9
+            score: 0,             // Current session score
+            wordsFound: 0,        // Total count of words found in session
+            currentSelection: [], // Array of indices selected during current drag
+            dragStartCell: null,  // Index of starting cell {r, c}
+            hintWords: [],        // Active words present on board displayed as hints
+            wordCounts: {         // Cumulative word counts categorised by length
+                3: 0,
+                4: 0,
+                5: 0,
+                '6+': 0
+            },
+            highScore: {
+                infinity: 0,
+                timed: 0,
+                grow_infinity: 0,
+                grow_timed: 0
+            },
+            revealedHintCells: [], // List of cell coordinates currently highlighted as a hint
+            multiplier: 1,         // Score multiplier based on rapid successive word finds
+            multiplierTimer: null
+        };
+
+        let gameMode = 'infinity'; // 'infinity', 'timed', 'grow_infinity', 'grow_timed'
+        let timerDuration = 67;    // Timed game duration in seconds
+        let timeRemaining = 67;
+        let timerInterval = null;
+        let isMuted = false;
+        let isDragging = false;
+        let audioCtx = null;       // Lazy initialized Web Audio Context for synthesizer
+
+        // Initialize high scores from storage if available safely
+        try {
+            const savedScores = localStorage.getItem('wordsearch_infinity_highscores');
+            if (savedScores) {
+                boardState.highScore = JSON.parse(savedScores);
+            }
+        } catch(e) {
+            console.log("Storage access not available");
+        }
+
+        // --- SYNTHESIZER SOUND EFFECTS (Web Audio API) ---
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        function playSound(type) {
+            if (isMuted) return;
+            try {
+                initAudio();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                const now = audioCtx.currentTime;
+
+                if (type === 'drag') {
+                    // Short, crisp high-pitched click
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(600 + (boardState.currentSelection.length * 80), now);
+                    gain.gain.setValueAtTime(0.08, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+                    osc.start(now);
+                    osc.stop(now + 0.05);
+                } else if (type === 'success') {
+                    // Satisfying, upbeat major chord arpeggio
+                    const root = 329.63; // E4
+                    const frequencies = [root, root * 1.25, root * 1.5, root * 2]; // E, G#, B, E
+                    frequencies.forEach((f, index) => {
+                        const subOsc = audioCtx.createOscillator();
+                        const subGain = audioCtx.createGain();
+                        subOsc.connect(subGain);
+                        subGain.connect(audioCtx.destination);
+                        subOsc.type = 'triangle';
+                        subOsc.frequency.setValueAtTime(f, now + (index * 0.06));
+                        subGain.gain.setValueAtTime(0.12, now + (index * 0.06));
+                        subGain.gain.exponentialRampToValueAtTime(0.001, now + (index * 0.06) + 0.35);
+                        subOsc.start(now + (index * 0.06));
+                        subOsc.stop(now + (index * 0.06) + 0.35);
+                    });
+                } else if (type === 'fail') {
+                    // Soft descending warning chime
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(220, now);
+                    osc.frequency.exponentialRampToValueAtTime(110, now + 0.25);
+                    gain.gain.setValueAtTime(0.15, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+                    osc.start(now);
+                    osc.stop(now + 0.25);
+                } else if (type === 'shuffle') {
+                    // Wind sweep/swoosh effect
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(150, now);
+                    osc.frequency.exponentialRampToValueAtTime(600, now + 0.35);
+                    gain.gain.setValueAtTime(0.12, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+                    osc.start(now);
+                    osc.stop(now + 0.35);
+                } else if (type === 'gameover') {
+                    // Orchestral victory arpeggio ending on minor / dramatic chord
+                    const notes = [261.63, 329.63, 392.00, 523.25, 659.25];
+                    notes.forEach((f, idx) => {
+                        const subOsc = audioCtx.createOscillator();
+                        const subGain = audioCtx.createGain();
+                        subOsc.connect(subGain);
+                        subGain.connect(audioCtx.destination);
+                        subOsc.type = 'sine';
+                        subOsc.frequency.setValueAtTime(f, now + (idx * 0.1));
+                        subGain.gain.setValueAtTime(0.15, now + (idx * 0.1));
+                        subGain.gain.exponentialRampToValueAtTime(0.001, now + (idx * 0.1) + 0.6);
+                        subOsc.start(now + (idx * 0.1));
+                        subOsc.stop(now + (idx * 0.1) + 0.6);
+                    });
+                }
+            } catch (err) {
+                console.log("Audio failed to synthesize", err);
+            }
+        }
+
+        function triggerVibrate() {
+            if ("vibrate" in navigator) {
+                try {
+                    navigator.vibrate(12);
+                } catch(e) {}
+            }
+        }
+
+        function toggleMute() {
+            isMuted = !isMuted;
+            const icon = document.getElementById('sound-icon');
+            if (isMuted) {
+                icon.className = 'fa-solid fa-volume-xmark text-xs text-rose-400';
+            } else {
+                icon.className = 'fa-solid fa-volume-high text-xs';
+                initAudio();
+            }
+        }
+
+        // --- GRID GENERATION & WORD SOLVING ALGORITHMS ---
+        const LETTER_FREQUENCIES = "EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEETTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTAAAAAAAAAAAAAAAAAAAAAAAAAOOOOOOOOOOOOOOOOOOOOOOOOOIIIIIIIIIIIIIIIIIIIIIIIIINNNNNNNNNNNNNNNNNNNNNNSSSSSSSSSSSSSSSSSSSHHHHHHHHHHHHHHHRRRRRRRRRRRRRRRDLLLLLLLLLLLLUUUUUUUUUUMMMMMMWWWFFFFGGGGYYYPPBVKJXQZ";
+        
+        function getRandomLetter() {
+            return LETTER_FREQUENCIES.charAt(Math.floor(Math.random() * LETTER_FREQUENCIES.length));
+        }
+
+        // Generate dynamic initial size x size grid with embedded valid words
+        function generateGrid() {
+            const size = boardState.gridSize;
+            const newGrid = Array(size * size).fill(null);
+            
+            // Dynamic parameters to scale word embedding based on board size (prevents layout deadlock)
+            let wordsToEmbedCount = 14;
+            let maxWordLen = 8;
+            if (size === 4) { wordsToEmbedCount = 3; maxWordLen = 4; }
+            else if (size === 5) { wordsToEmbedCount = 5; maxWordLen = 5; }
+            else if (size === 6) { wordsToEmbedCount = 7; maxWordLen = 6; }
+            else if (size === 7) { wordsToEmbedCount = 9; maxWordLen = 7; }
+            else if (size === 8) { wordsToEmbedCount = 11; maxWordLen = 8; }
+
+            const activeWordsToEmbed = [];
+            const dictArray = Array.from(DICTIONARY);
+            
+            while(activeWordsToEmbed.length < wordsToEmbedCount) {
+                const randWord = dictArray[Math.floor(Math.random() * dictArray.length)];
+                if (randWord.length >= 3 && randWord.length <= maxWordLen && !activeWordsToEmbed.includes(randWord)) {
+                    activeWordsToEmbed.push(randWord);
+                }
+            }
+
+            // Direction mappings: [rowOffset, colOffset]
+            const directions = [
+                [0, 1],   // Right
+                [1, 0],   // Down
+                [1, 1],   // Diagonal Down-Right
+                [-1, 1],  // Diagonal Up-Right
+                [0, -1],  // Left (backward)
+                [-1, 0],  // Up (backward)
+                [-1, -1], // Diagonal Up-Left
+                [1, -1]   // Diagonal Down-Left
+            ];
+
+            // Embed each word onto the canvas smoothly
+            activeWordsToEmbed.forEach(word => {
+                let placed = false;
+                let attempts = 0;
+                
+                while (!placed && attempts < 100) {
+                    attempts++;
+                    const startRow = Math.floor(Math.random() * size);
+                    const startCol = Math.floor(Math.random() * size);
+                    const dir = directions[Math.floor(Math.random() * directions.length)];
+                    
+                    const endRow = startRow + dir[0] * (word.length - 1);
+                    const endCol = startCol + dir[1] * (word.length - 1);
+                    
+                    if (endRow >= 0 && endRow < size && endCol >= 0 && endCol < size) {
+                        let collision = false;
+                        for (let i = 0; i < word.length; i++) {
+                            const r = startRow + dir[0] * i;
+                            const c = startCol + dir[1] * i;
+                            const existingIdx = r * size + c;
+                            if (newGrid[existingIdx] !== null && newGrid[existingIdx] !== word[i]) {
+                                collision = true;
+                                break;
+                            }
+                        }
+                        
+                        if (!collision) {
+                            for (let i = 0; i < word.length; i++) {
+                                const r = startRow + dir[0] * i;
+                                const c = startCol + dir[1] * i;
+                                newGrid[r * size + c] = word[i];
+                            }
+                            placed = true;
+                        }
+                    }
+                }
+            });
+
+            // Fill empty cells
+            for (let i = 0; i < newGrid.length; i++) {
+                if (newGrid[i] === null) {
+                    newGrid[i] = getRandomLetter();
+                }
+            }
+
+            boardState.grid = newGrid;
+            boardState.revealedHintCells = [];
+            
+            findAndSetHints();
+        }
+
+        // Exhaustive solver customized to active board sizes
+        function findAndSetHints() {
+            const size = boardState.gridSize;
+            const grid = boardState.grid;
+            const foundWords = new Map();
+
+            const directions = [
+                [0, 1],   // Right
+                [1, 0],   // Down
+                [1, 1],   // Diagonal Down-Right
+                [-1, 1],  // Diagonal Up-Right
+                [0, -1],  // Left
+                [-1, 0],  // Up
+                [-1, -1], // Diagonal Up-Left
+                [1, -1]   // Diagonal Down-Left
+            ];
+
+            for (let row = 0; row < size; row++) {
+                for (let col = 0; col < size; col++) {
+                    directions.forEach(dir => {
+                        let currentWord = "";
+                        let indices = [];
+                        
+                        for (let step = 0; step < size; step++) {
+                            const r = row + dir[0] * step;
+                            const c = col + dir[1] * step;
+                            
+                            if (r >= 0 && r < size && c >= 0 && c < size) {
+                                const idx = r * size + c;
+                                currentWord += grid[idx];
+                                indices.push(idx);
+                                
+                                if (currentWord.length >= 3) {
+                                    if (DICTIONARY.has(currentWord)) {
+                                        foundWords.set(currentWord, [...indices]);
+                                    }
+                                }
+                            } else {
+                                break;
+                            }
+                        }
+                    });
+                }
+            }
+
+            // Scramble fallback if layout runs out of matches
+            if (foundWords.size === 0) {
+                console.log("No valid configurations. Autoscrambling...");
+                generateGrid();
+                return;
+            }
+
+            // Count remaining matches classified by size
+            const counts = { 3: 0, 4: 0, 5: 0, '6+': 0 };
+            for (const word of foundWords.keys()) {
+                const len = word.length;
+                if (len === 3) counts[3]++;
+                else if (len === 4) counts[4]++;
+                else if (len === 5) counts[5]++;
+                else if (len >= 6) counts['6+']++;
+            }
+            boardState.wordCounts = counts;
+
+            const sortedWords = Array.from(foundWords.keys()).sort((a, b) => b.length - a.length);
+            
+            const randomHints = [];
+            while (randomHints.length < Math.min(3, sortedWords.length)) {
+                const randWord = sortedWords[Math.floor(Math.random() * sortedWords.length)];
+                if (!randomHints.some(h => h.word === randWord)) {
+                    randomHints.push({
+                        word: randWord,
+                        indices: foundWords.get(randWord)
+                    });
+                }
+            }
+
+            boardState.hintWords = randomHints;
+            renderHintBanner();
+        }
+
+        // --- RENDER FUNCTIONS ---
+        function renderHintBanner() {
+            const container = document.getElementById('hint-container');
+            container.innerHTML = "";
+            
+            const counts = boardState.wordCounts || { 3: 0, 4: 0, 5: 0, '6+': 0 };
+
+            const countsData = [
+                { label: '3 Letters', count: counts[3], color: 'from-sky-500/10 to-blue-500/5 border-sky-900/30', textColor: 'text-sky-300', dotColor: 'bg-sky-400' },
+                { label: '4 Letters', count: counts[4], color: 'from-blue-500/10 to-indigo-500/5 border-blue-900/30', textColor: 'text-blue-300', dotColor: 'bg-blue-400' },
+                { label: '5 Letters', count: counts[5], color: 'from-fuchsia-500/10 to-purple-500/5 border-fuchsia-900/30', textColor: 'text-fuchsia-300', dotColor: 'bg-fuchsia-400' },
+                { label: '6+ Letters', count: counts['6+'], color: 'from-amber-500/10 to-orange-500/5 border-amber-900/30', textColor: 'text-amber-300', dotColor: 'bg-amber-400' }
+            ];
+
+            countsData.forEach(item => {
+                const pill = document.createElement('div');
+                pill.className = `px-3 py-2 rounded-xl bg-gradient-to-br ${item.color} border text-xs font-semibold flex items-center justify-between gap-2.5 shadow-sm min-w-[90px] flex-1`;
+                pill.innerHTML = `
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-1.5 h-1.5 rounded-full ${item.dotColor}"></span>
+                        <span class="text-slate-400 font-medium text-[10px] tracking-wide text-left">${item.label}</span>
+                    </div>
+                    <span class="font-extrabold ${item.textColor} font-mono text-xs">${item.count}</span>
+                `;
+                container.appendChild(pill);
+            });
+        }
+
+        // Hint action deducting 100 points
+        function triggerRevealHint() {
+            if (boardState.hintWords.length === 0) return;
+
+            // Deduct 100 points (floor at 0)
+            const penalty = 100;
+            boardState.score = Math.max(0, boardState.score - penalty);
+            updateStatsUI();
+
+            // Spawn a visual red deduction bubble inside the board area
+            const outerContainer = document.getElementById('grid-outer-container');
+            const scoreBubble = document.createElement('div');
+            scoreBubble.className = "absolute pointer-events-none font-black text-2xl text-rose-500 tracking-wider z-40 drop-shadow-lg opacity-0";
+            scoreBubble.innerText = `-${penalty}`;
+            outerContainer.appendChild(scoreBubble);
+
+            // Center position within the grid space
+            scoreBubble.style.left = `calc(50% - 20px)`;
+            scoreBubble.style.top = `40%`;
+
+            scoreBubble.animate([
+                { transform: 'translateY(0) scale(0.8)', opacity: 0 },
+                { transform: 'translateY(-15px) scale(1.2)', opacity: 1, offset: 0.15 },
+                { transform: 'translateY(-40px) scale(1)', opacity: 0 }
+            ], { duration: 1000, easing: 'ease-out' });
+
+            setTimeout(() => {
+                scoreBubble.remove();
+            }, 1000);
+
+            // Reveal the first letter of a random target word
+            const targetHint = boardState.hintWords[Math.floor(Math.random() * boardState.hintWords.length)];
+            const targetIdx = targetHint.indices[0];
+            
+            if (!boardState.revealedHintCells.includes(targetIdx)) {
+                boardState.revealedHintCells.push(targetIdx);
+                renderGrid();
+                playSound('fail'); // play chime alert for penalty
+                triggerVibrate();
+                
+                setTimeout(() => {
+                    boardState.revealedHintCells = boardState.revealedHintCells.filter(idx => idx !== targetIdx);
+                    renderGrid();
+                }, 3500);
+            }
+        }
+
+        // Render dynamic scale grid cells
+        function renderGrid() {
+            const container = document.getElementById('grid-container');
+            const size = boardState.gridSize;
+            
+            // Reapply grid layout dimensions dynamically
+            container.className = `grid grid-cols-${size} grid-rows-${size} gap-1 h-full w-full select-none`;
+            container.innerHTML = "";
+            
+            for (let i = 0; i < size * size; i++) {
+                const cellVal = boardState.grid[i] || "";
+                const cell = document.createElement('div');
+                cell.setAttribute('data-index', i);
+                
+                const r = Math.floor(i / size);
+                const c = i % size;
+                cell.setAttribute('data-row', r);
+                cell.setAttribute('data-col', c);
+
+                const isSelected = boardState.currentSelection.includes(i);
+                const isHinted = boardState.revealedHintCells.includes(i);
+
+                let baseStyle = "grid-cell rounded-xl flex items-center justify-center font-black text-lg select-none cursor-pointer transition-all duration-100 ";
+                
+                if (isSelected) {
+                    baseStyle += "bg-gradient-to-br from-brand-500 to-indigo-600 text-white selected shadow-lg shadow-brand-500/30 ring-2 ring-brand-300 scale-95 ";
+                } else if (isHinted) {
+                    baseStyle += "hint-pulse-animation text-emerald-400 font-bold border border-emerald-500/40 ";
+                } else {
+                    baseStyle += "bg-slate-900 border border-slate-850 text-slate-300 hover:bg-slate-850 hover:text-white ";
+                }
+
+                // Adjust text sizes slightly for larger dimensions to remain readable on mobile bounds
+                if (size >= 8) {
+                    baseStyle += "text-sm md:text-base";
+                }
+
+                cell.className = baseStyle;
+                cell.innerHTML = `<span>${cellVal}</span>`;
+
+                cell.addEventListener('mousedown', (e) => onStartSelection(e, i));
+                cell.addEventListener('mouseenter', () => onHoverSelection(i));
+                cell.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    onStartSelection(e, i);
+                }, { passive: false });
+
+                container.appendChild(cell);
+            }
+        }
+
+        // --- INTERACTION & SELECTION MECHANICS ---
+        function onStartSelection(e, idx) {
+            initAudio();
+            isDragging = true;
+            boardState.currentSelection = [idx];
+            
+            const size = boardState.gridSize;
+            boardState.dragStartCell = {
+                row: Math.floor(idx / size),
+                col: idx % size
+            };
+            
+            updateSelectionLine();
+            updateWordPreview();
+            renderGrid();
+            playSound('drag');
+            triggerVibrate();
+        }
+
+        function onHoverSelection(idx) {
+            if (!isDragging) return;
+            addCellToPath(idx);
+        }
+
+        function handleTouchMove(e) {
+            if (!isDragging) return;
+            const touch = e.touches[0];
+            const targetEl = document.elementFromPoint(touch.clientX, touch.clientY);
+            if (targetEl) {
+                const cell = targetEl.closest('.grid-cell');
+                if (cell) {
+                    const idx = parseInt(cell.getAttribute('data-index'));
+                    if (!isNaN(idx)) {
+                        addCellToPath(idx);
+                    }
+                }
+            }
+        }
+
+        function addCellToPath(idx) {
+            const size = boardState.gridSize;
+            const currentR = Math.floor(idx / size);
+            const currentC = idx % size;
+            const startR = boardState.dragStartCell.row;
+            const startC = boardState.dragStartCell.col;
+
+            const dRow = currentR - startR;
+            const dCol = currentC - startC;
+
+            const stepRow = Math.sign(dRow);
+            const stepCol = Math.sign(dCol);
+
+            const isStraightLine = dRow === 0 || dCol === 0 || Math.abs(dRow) === Math.abs(dCol);
+
+            if (isStraightLine) {
+                const path = [];
+                let currentStepRow = startR;
+                let currentStepCol = startC;
+
+                const distance = Math.max(Math.abs(dRow), Math.abs(dCol));
+
+                for (let i = 0; i <= distance; i++) {
+                    const nextIdx = currentStepRow * size + currentStepCol;
+                    path.push(nextIdx);
+                    currentStepRow += stepRow;
+                    currentStepCol += stepCol;
+                }
+
+                if (path.length !== boardState.currentSelection.length) {
+                    playSound('drag');
+                }
+
+                boardState.currentSelection = path;
+                updateSelectionLine();
+                updateWordPreview();
+                renderGrid();
+            }
+        }
+
+        function onEndSelection() {
+            if (!isDragging) return;
+            isDragging = false;
+            
+            const selectedWord = boardState.currentSelection.map(idx => boardState.grid[idx]).join('');
+            
+            if (selectedWord.length >= 3 && DICTIONARY.has(selectedWord)) {
+                handleWordSuccess(selectedWord);
+            } else {
+                if (selectedWord.length >= 3) {
+                    showValidationBanner("NOT FOUND", "rose");
+                }
+                playSound('fail');
+                triggerVibrate();
+            }
+
+            boardState.currentSelection = [];
+            hideSelectionLine();
+            updateWordPreview();
+            renderGrid();
+        }
+
+        function updateSelectionLine() {
+            const line = document.getElementById('selection-line');
+            const svg = document.getElementById('selection-svg');
+            
+            if (boardState.currentSelection.length < 2) {
+                line.setAttribute('x1', '0');
+                line.setAttribute('y1', '0');
+                line.setAttribute('x2', '0');
+                line.setAttribute('y2', '0');
+                return;
+            }
+
+            const container = document.getElementById('grid-container');
+            const firstIdx = boardState.currentSelection[0];
+            const lastIdx = boardState.currentSelection[boardState.currentSelection.length - 1];
+
+            const firstCell = container.querySelector(`[data-index="${firstIdx}"]`);
+            const lastCell = container.querySelector(`[data-index="${lastIdx}"]`);
+
+            if (firstCell && lastCell) {
+                const rect = svg.getBoundingClientRect();
+                const cell1 = firstCell.getBoundingClientRect();
+                const cell2 = lastCell.getBoundingClientRect();
+
+                const x1 = cell1.left + cell1.width / 2 - rect.left;
+                const y1 = cell1.top + cell1.height / 2 - rect.top;
+                const x2 = cell2.left + cell2.width / 2 - rect.left;
+                const y2 = cell2.top + cell2.height / 2 - rect.top;
+
+                line.setAttribute('x1', x1);
+                line.setAttribute('y1', y1);
+                line.setAttribute('x2', x2);
+                line.setAttribute('y2', y2);
+            }
+        }
+
+        function hideSelectionLine() {
+            const line = document.getElementById('selection-line');
+            line.setAttribute('x1', '0');
+            line.setAttribute('y1', '0');
+            line.setAttribute('x2', '0');
+            line.setAttribute('y2', '0');
+        }
+
+        function updateWordPreview() {
+            const previewEl = document.getElementById('word-preview');
+            const word = boardState.currentSelection.map(idx => boardState.grid[idx]).join('');
+            
+            if (word.length > 0) {
+                previewEl.innerText = word;
+                previewEl.className = "text-md font-extrabold tracking-widest text-brand-400 font-mono uppercase";
+            } else {
+                previewEl.innerText = "---";
+                previewEl.className = "text-md font-extrabold tracking-widest text-slate-600 font-mono uppercase";
+            }
+        }
+
+        // --- SUCCESS RESOLUTIONS, CASCADING & REFILLS ---
+        function handleWordSuccess(word) {
+            playSound('success');
+            triggerVibrate();
+
+            // Dynamic float-score system: completely prevents overlapping/stuck elements
+            const calculatedPoints = Math.round(word.length * 55 * boardState.multiplier);
+            const container = document.getElementById('grid-container');
+            const lastIdx = boardState.currentSelection[boardState.currentSelection.length - 1];
+            const targetCell = container.querySelector(`[data-index="${lastIdx}"]`);
+            
+            if (targetCell) {
+                const outerContainer = document.getElementById('grid-outer-container');
+                const scoreBubble = document.createElement('div');
+                scoreBubble.className = "absolute pointer-events-none font-black text-2xl text-emerald-400 tracking-wider z-40 drop-shadow-lg opacity-0";
+                scoreBubble.innerText = `+${calculatedPoints}`;
+                
+                outerContainer.appendChild(scoreBubble);
+
+                const rect = targetCell.getBoundingClientRect();
+                const gridRect = outerContainer.getBoundingClientRect();
+                scoreBubble.style.left = `${rect.left - gridRect.left + 5}px`;
+                scoreBubble.style.top = `${rect.top - gridRect.top - 20}px`;
+
+                // Animate and garbage collect dynamic node
+                scoreBubble.animate([
+                    { transform: 'translateY(0) scale(0.8)', opacity: 0 },
+                    { transform: 'translateY(-15px) scale(1.2)', opacity: 1, offset: 0.15 },
+                    { transform: 'translateY(-40px) scale(1)', opacity: 0 }
+                ], { duration: 1000, easing: 'ease-out' });
+
+                setTimeout(() => {
+                    scoreBubble.remove();
+                }, 1000);
+            }
+
+            // Explode physical particles
+            boardState.currentSelection.forEach(idx => {
+                const cell = container.querySelector(`[data-index="${idx}"]`);
+                if (cell) {
+                    spawnParticles(cell);
+                }
+            });
+
+            // Update scores
+            boardState.score += calculatedPoints;
+            boardState.wordsFound++;
+            
+            // Rapid succession multiplier
+            if (gameMode === 'timed' || gameMode === 'grow_timed') {
+                triggerMultiplierUp();
+            }
+
+            // High score checks
+            if (boardState.score > boardState.highScore[gameMode]) {
+                boardState.highScore[gameMode] = boardState.score;
+                try {
+                    localStorage.setItem('wordsearch_infinity_highscores', JSON.stringify(boardState.highScore));
+                } catch(e) {}
+            }
+
+            updateStatsUI();
+            showValidationBanner("VALID WORD!", "emerald");
+
+            // Check if play conditions require grid scaling
+            const didGrow = checkGrowProgress();
+
+            // Skip default slide cascade if level-up is regenerating the entire layout
+            if (!didGrow) {
+                cascadeSequence(boardState.currentSelection);
+            }
+        }
+
+        // Animated notification layer displayed on board extensions
+        function showLevelUpOverlay(newSize) {
+            const overlay = document.createElement('div');
+            overlay.className = "absolute inset-0 bg-brand-950/90 flex flex-col items-center justify-center z-50 text-center p-6 animate-fade-in rounded-2xl border border-emerald-500/20";
+            overlay.innerHTML = `
+                <div class="scale-90 animate-bounce">
+                    <div class="w-16 h-16 bg-gradient-to-br from-emerald-400 to-teal-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-emerald-500/20">
+                        <i class="fa-solid fa-up-long text-white text-2xl animate-pulse"></i>
+                    </div>
+                    <h3 class="text-2xl font-black text-emerald-400 tracking-tight uppercase mb-1">Grid Upgraded!</h3>
+                    <p class="text-slate-300 text-xs max-w-[250px] mx-auto">Your board expanded to <strong class="text-white">${newSize}x${newSize}</strong> to fit larger words!</p>
+                </div>
+            `;
+            const outerContainer = document.getElementById('grid-outer-container');
+            outerContainer.appendChild(overlay);
+            
+            playSound('shuffle');
+            triggerVibrate();
+
+            setTimeout(() => {
+                overlay.animate([
+                    { opacity: 1, transform: 'scale(1)' },
+                    { opacity: 0, transform: 'scale(0.9)' }
+                ], { duration: 400, easing: 'ease-in', fill: 'forwards' });
+                setTimeout(() => overlay.remove(), 400);
+            }, 1800);
+        }
+
+        // Progression rules evaluating board extensions (strictly growth only)
+        function checkGrowProgress() {
+            if (gameMode !== 'grow_infinity' && gameMode !== 'grow_timed') return false;
+            
+            let targetSize = boardState.gridSize;
+            const score = boardState.score;
+            if (score >= 3500) targetSize = Math.max(targetSize, 9);
+            else if (score >= 2400) targetSize = Math.max(targetSize, 8);
+            else if (score >= 1500) targetSize = Math.max(targetSize, 7);
+            else if (score >= 800) targetSize = Math.max(targetSize, 6);
+            else if (score >= 300) targetSize = Math.max(targetSize, 5);
+
+            if (targetSize > boardState.gridSize) {
+                boardState.gridSize = targetSize;
+                
+                showLevelUpOverlay(targetSize);
+                
+                // Re-scramble full grid with upgraded constraints
+                setTimeout(() => {
+                    generateGrid();
+                    renderGrid();
+                }, 300);
+                return true;
+            }
+            return false;
+        }
+
+        // Particle generators
+        function spawnParticles(cellElement) {
+            const parent = document.getElementById('particle-container');
+            const rect = cellElement.getBoundingClientRect();
+            const containerRect = parent.getBoundingClientRect();
+
+            const x = rect.left + rect.width / 2 - containerRect.left;
+            const y = rect.top + rect.height / 2 - containerRect.top;
+
+            const colorPalette = ['#8b5cf6', '#a78bfa', '#10b981', '#34d399', '#f59e0b', '#3b82f6'];
+
+            for (let i = 0; i < 12; i++) {
+                const particle = document.createElement('div');
+                particle.className = "absolute rounded-full pointer-events-none";
+                
+                const size = Math.floor(Math.random() * 6) + 4;
+                particle.style.width = `${size}px`;
+                particle.style.height = `${size}px`;
+                particle.style.backgroundColor = colorPalette[Math.floor(Math.random() * colorPalette.length)];
+                particle.style.left = `${x}px`;
+                particle.style.top = `${y}px`;
+                parent.appendChild(particle);
+
+                const angle = Math.random() * Math.PI * 2;
+                const speed = Math.random() * 90 + 35;
+                const dx = Math.cos(angle) * speed;
+                const dy = Math.sin(angle) * speed;
+
+                particle.animate([
+                    { transform: 'translate(0, 0) scale(1)', opacity: 1 },
+                    { transform: `translate(${dx}px, ${dy}px) scale(0)`, opacity: 0 }
+                ], {
+                    duration: 650 + Math.random() * 200,
+                    easing: 'cubic-bezier(0.1, 0.8, 0.3, 1)',
+                    fill: 'forwards'
+                });
+
+                setTimeout(() => {
+                    particle.remove();
+                }, 900);
+            }
+        }
+
+        function showValidationBanner(text, type) {
+            const banner = document.getElementById('selection-status');
+            banner.innerText = text;
+            banner.className = `text-xs font-bold px-2.5 py-0.5 rounded-lg block uppercase tracking-wide bg-${type}-500/10 text-${type}-400`;
+            banner.style.display = 'block';
+            
+            setTimeout(() => {
+                banner.style.display = 'none';
+            }, 1200);
+        }
+
+        function triggerMultiplierUp() {
+            clearTimeout(boardState.multiplierTimer);
+            boardState.multiplier = Math.min(5, boardState.multiplier + 1);
+            
+            const badge = document.getElementById('multiplier-badge');
+            if (boardState.multiplier > 1) {
+                badge.innerText = `${boardState.multiplier}x`;
+                badge.className = "text-[10px] font-extrabold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded block scale-110 transition-transform duration-100";
+            }
+
+            boardState.multiplierTimer = setTimeout(() => {
+                boardState.multiplier = 1;
+                badge.className = "hidden";
+            }, 7500);
+        }
+
+        // Cascade refills mapping elements to column bounds
+        function cascadeSequence(clearedIndices) {
+            const size = boardState.gridSize;
+            const grid = [...boardState.grid];
+            const columnsToCascade = new Set();
+
+            clearedIndices.forEach(idx => {
+                grid[idx] = null;
+                columnsToCascade.add(idx % size);
+            });
+
+            columnsToCascade.forEach(col => {
+                const nonNulls = [];
+                for (let row = size - 1; row >= 0; row--) {
+                    const idx = row * size + col;
+                    if (grid[idx] !== null) {
+                        nonNulls.push(grid[idx]);
+                    }
+                }
+
+                let nonNullPtr = 0;
+                for (let row = size - 1; row >= 0; row--) {
+                    const idx = row * size + col;
+                    if (nonNullPtr < nonNulls.length) {
+                        grid[idx] = nonNulls[nonNullPtr];
+                        nonNullPtr++;
+                    } else {
+                        grid[idx] = getRandomLetter();
+                    }
+                }
+            });
+
+            boardState.grid = grid;
+            renderGrid();
+            
+            const container = document.getElementById('grid-container');
+            columnsToCascade.forEach(col => {
+                for (let row = 0; row < size; row++) {
+                    const idx = row * size + col;
+                    const cell = container.querySelector(`[data-index="${idx}"]`);
+                    if (cell) {
+                        cell.classList.add('falling');
+                    }
+                }
+            });
+
+            findAndSetHints();
+        }
+
+        function scrambleBoard() {
+            playSound('shuffle');
+            generateGrid();
+            renderGrid();
+            showValidationBanner("BOARD SCRAMBLED", "brand");
+        }
+
+        function updateStatsUI() {
+            document.getElementById('score-display').innerText = boardState.score;
+            document.getElementById('hi-score-display').innerText = boardState.highScore[gameMode] || 0;
+
+            if (gameMode === 'infinity' || gameMode === 'grow_infinity') {
+                document.getElementById('dynamic-value').innerText = boardState.wordsFound;
+            }
+        }
+
+        // --- GAME TIMER & LIFECYCLES ---
+        function startGame(mode) {
+            gameMode = mode;
+            boardState.score = 0;
+            boardState.wordsFound = 0;
+            boardState.currentSelection = [];
+            boardState.revealedHintCells = [];
+            boardState.multiplier = 1;
+            document.getElementById('multiplier-badge').className = "hidden";
+            
+            // Set dynamic initial grid size per play mode selected
+            if (mode === 'grow_infinity' || mode === 'grow_timed') {
+                boardState.gridSize = 4; // Starts on a compact 4x4 scale!
+            } else {
+                boardState.gridSize = 9; // Core classic 9x9 scale
+            }
+
+            generateGrid();
+            updateStatsUI();
+
+            // Toggle screens views
+            document.getElementById('welcome-screen').classList.add('hidden');
+            document.getElementById('game-over-screen').classList.add('hidden');
+            document.getElementById('game-interface').classList.remove('hidden');
+
+            const pill = document.getElementById('mode-pill');
+            const dynamicTitle = document.getElementById('dynamic-title');
+            const dynamicVal = document.getElementById('dynamic-value');
+            const dynamicIcon = document.getElementById('dynamic-icon');
+            const progressRing = document.getElementById('progress-ring');
+
+            if (mode === 'infinity' || mode === 'grow_infinity') {
+                pill.innerText = mode === 'grow_infinity' ? "GROW INFINITY" : "INFINITY";
+                pill.className = "font-bold text-brand-300 uppercase tracking-wider text-[10px]";
+                dynamicTitle.innerText = "WORDS FOUND";
+                dynamicVal.innerText = "0";
+                dynamicIcon.className = "fa-solid fa-spell-check absolute text-xs text-brand-400";
+                progressRing.setAttribute('stroke-dasharray', '100, 100');
+                progressRing.className.baseVal = "text-brand-500";
+                
+                clearInterval(timerInterval);
+            } else {
+                pill.innerText = mode === 'grow_timed' ? "GROW TIMED" : "TIMED CHALLENGE";
+                pill.className = "font-bold text-emerald-400 uppercase tracking-wider text-[10px]";
+                dynamicTitle.innerText = "TIME REMAINING";
+                timeRemaining = timerDuration;
+                dynamicVal.innerText = `${timeRemaining}s`;
+                dynamicIcon.className = "fa-regular fa-clock absolute text-xs text-emerald-400";
+                progressRing.className.baseVal = "text-emerald-500";
+                
+                clearInterval(timerInterval);
+                timerInterval = setInterval(() => {
+                    timeRemaining--;
+                    dynamicVal.innerText = `${timeRemaining}s`;
+                    
+                    const percentage = (timeRemaining / timerDuration) * 100;
+                    progressRing.setAttribute('stroke-dasharray', `${percentage}, 100`);
+
+                    if (timeRemaining <= 10) {
+                        progressRing.className.baseVal = "text-rose-500 transition-colors";
+                        dynamicIcon.className = "fa-solid fa-hourglass-half absolute text-xs text-rose-500 animate-pulse";
+                        dynamicVal.className = "text-2xl font-black tracking-tight text-rose-500 animate-pulse";
+                    } else {
+                        dynamicVal.className = "text-2xl font-black tracking-tight text-white";
+                    }
+
+                    if (timeRemaining <= 0) {
+                        endGame();
+                    }
+                }, 1000);
+            }
+
+            renderGrid();
+        }
+
+        function retryGame() {
+            startGame(gameMode);
+        }
+
+        function endGame() {
+            clearInterval(timerInterval);
+            playSound('gameover');
+            triggerVibrate();
+
+            // Finalize subtitle description
+            const isGrow = gameMode === 'grow_timed' || gameMode === 'grow_infinity';
+            document.getElementById('game-over-subtitle').innerText = isGrow ? "Challenge completed on Grow Playmode!" : "You've survived the 67 seconds timed word search.";
+
+            document.getElementById('final-score').innerText = boardState.score;
+            document.getElementById('final-words').innerText = boardState.wordsFound;
+
+            document.getElementById('game-over-screen').classList.remove('hidden');
+        }
+
+        function exitToMenu() {
+            clearInterval(timerInterval);
+            document.getElementById('game-interface').classList.add('hidden');
+            document.getElementById('game-over-screen').classList.add('hidden');
+            document.getElementById('welcome-screen').classList.remove('hidden');
+        }
+
+        // --- GLOBAL EVENT REGISTRATIONS FOR RESPONSIVE GESTURES ---
+        window.addEventListener('mouseup', onEndSelection);
+        window.addEventListener('touchend', onEndSelection);
+        window.addEventListener('touchmove', handleTouchMove, { passive: false });
+
+        window.addEventListener('resize', () => {
+            if (isDragging) {
+                updateSelectionLine();
+            }
+        });
+    </script>
+</body>
+</html>
